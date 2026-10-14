@@ -1,2 +1,12 @@
+export { createGuard, configHash } from "./guard.js";
+export type { Guard, GuardDeps, Run, StartRunOptions } from "./guard.js";
 export * from "./schemas/index.js";
+export type { RunState, RunStatus, EndStatus } from "./state/runState.js";
+export type { Policy, PolicyResult } from "./policies/index.js";
+export { defaultPolicies } from "./policies/index.js";
+export { SEVERITY, mostSevere, capAction } from "./decision/combine.js";
+export type { AuditSink, AuditRecord } from "./audit/sink.js";
+export { AUDIT_SCHEMA_VERSION } from "./audit/sink.js";
 export { QUESTIONS_VERSION } from "./evaluator/questions.js";
+export { systemClock, manualClock, type Clock, type ManualClock } from "./util/clock.js";
+export { randomIds, sequentialIds, type IdGenerator } from "./util/ids.js";

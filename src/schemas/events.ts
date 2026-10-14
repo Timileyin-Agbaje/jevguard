@@ -66,6 +66,8 @@ export interface EventEnvelope {
   tool?: string;
   /** Call, error or result fingerprint, depending on the event type. */
   fingerprint?: string;
+  /** Set on a re-proposed call that a human approved via `run.resume()`. */
+  approved?: boolean;
 }
 
 export type RecordedEvent = GuardEvent & EventEnvelope;
