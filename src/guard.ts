@@ -1,4 +1,6 @@
-import { nullSink, AUDIT_SCHEMA_VERSION, type AuditRecord, type AuditSink } from "./audit/sink.js";
+import { JsonlFileSink } from "./audit/jsonl.js";
+import { createRedactor, redactDeep, truncateValue, type Redactor } from "./audit/redact.js";
+import { AUDIT_SCHEMA_VERSION, type AuditRecord, type AuditSink } from "./audit/sink.js";
 import { combinePolicyResults, mostSevere } from "./decision/combine.js";
 import { QUESTIONS_VERSION } from "./evaluator/questions.js";
 import { defaultPolicies } from "./policies/index.js";
@@ -13,7 +15,7 @@ import { randomIds, type IdGenerator } from "./util/ids.js";
 import { SerialQueue } from "./util/queue.js";
 
 export interface GuardDeps {
-  /** Audit sink. Defaults to a no-op sink. */
+  /** Audit sink. Defaults to a JsonlFileSink writing `<config.audit.dir>/<runId>.jsonl`. */
   sink?: AuditSink;
   clock?: Clock;
   ids?: IdGenerator;
@@ -59,7 +61,8 @@ export function createGuard(input: GuardConfigInput = {}, deps: GuardDeps = {}):
   const ctx: RunContext = {
     config,
     configHash: configHash(config),
-    sink: deps.sink ?? nullSink,
+    sink: deps.sink ?? new JsonlFileSink({ dir: config.audit.dir }),
+    redact: createRedactor(config.redaction.patterns, config.redaction.replacement),
     clock: deps.clock ?? systemClock,
     policies: deps.policies ?? defaultPolicies,
     onError: config.onError ?? defaultOnError,
@@ -78,6 +81,7 @@ interface RunContext {
   clock: Clock;
   policies: readonly Policy[];
   onError: ErrorHandler;
+  redact: Redactor;
 }
 
 export function runPolicies(policies: readonly Policy[], state: RunState, event: Parameters<Policy["evaluate"]>[1], config: GuardConfig): PolicyResult {
@@ -225,8 +229,9 @@ class GuardedRun implements Run {
   }
 
   private audit(record: DistributiveOmit<AuditRecord, "schemaVersion" | "runId">): void {
-    const full = { schemaVersion: AUDIT_SCHEMA_VERSION, runId: this.id, ...record } as AuditRecord;
+    let full = { schemaVersion: AUDIT_SCHEMA_VERSION, runId: this.id, ...record } as AuditRecord;
     try {
+      full = sanitizeAuditRecord(full, this.ctx.redact, this.ctx.config.audit.maxOutputChars);
       const result = this.ctx.sink.write(full);
       if (result && typeof (result as Promise<void>).catch === "function") {
         (result as Promise<void>).catch((err: unknown) => this.ctx.onError(err, { runId: this.id, where: "audit write" }));
@@ -234,6 +239,30 @@ class GuardedRun implements Run {
     } catch (err) {
       this.ctx.onError(err, { runId: this.id, where: "audit write" });
     }
+  }
+}
+
+/**
+ * Redacts untrusted or free-text content (events, goal, metadata, notes, rationales) and truncates
+ * large event payloads. Guard-generated fields and the identity of whoever resumed a run are kept.
+ */
+export function sanitizeAuditRecord(record: AuditRecord, redact: Redactor, maxChars: number): AuditRecord {
+  switch (record.kind) {
+    case "event": {
+      const event = redactDeep({ ...record.event }, redact) as Record<string, unknown>;
+      for (const key of ["args", "output", "error", "summary"]) {
+        if (key in event) event[key] = truncateValue(event[key], maxChars);
+      }
+      return { ...record, event: event as unknown as typeof record.event };
+    }
+    case "run_started":
+      return { ...record, goal: redact(record.goal), metadata: redactDeep(record.metadata, redact) };
+    case "resume":
+      return record.note === undefined ? record : { ...record, note: redact(record.note) };
+    case "evaluation":
+      return record.rationale === undefined ? record : { ...record, rationale: redact(record.rationale) };
+    default:
+      return record;
   }
 }
 
