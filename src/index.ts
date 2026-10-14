@@ -13,3 +13,7 @@ export { DEFAULT_REDACTION_PATTERNS, createRedactor, type TruncatedValue } from 
 export { QUESTIONS_VERSION } from "./evaluator/questions.js";
 export { systemClock, manualClock, type Clock, type ManualClock } from "./util/clock.js";
 export { randomIds, sequentialIds, type IdGenerator } from "./util/ids.js";
+export type { BehaviorEvaluator } from "./evaluator/types.js";
+export { EvaluatorRequestError, isRetryableError } from "./evaluator/types.js";
+export { MockEvaluator, type MockStep } from "./evaluator/mock.js";
+export type { EvaluationTrigger } from "./evaluator/scheduler.js";
