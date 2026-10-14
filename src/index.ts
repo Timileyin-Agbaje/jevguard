@@ -1,1 +1,2 @@
-export const VERSION = "0.1.0";
+export * from "./schemas/index.js";
+export { QUESTIONS_VERSION } from "./evaluator/questions.js";
