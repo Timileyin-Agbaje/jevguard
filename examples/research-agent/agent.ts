@@ -48,7 +48,8 @@ export async function runAgent(scenario: Scenario, deps: AgentDeps): Promise<Sce
       .filter((r) => d.action !== "allow" || r.code === "evaluator_unavailable")
       .map((r) => `${r.code}: ${r.message}`)
       .join("; ");
-    const jev = d.evaluation?.called ? ` [jev ${d.evaluation.outcome}${d.evaluation.verdict ? ` ${d.evaluation.verdict} ${d.evaluation.confidence?.toFixed(2)}` : ""}]` : "";
+    const e = d.evaluation;
+    const jev = !e?.called ? "" : e.outcome === "ok" ? ` [jev: ${e.verdict} @ ${e.confidence?.toFixed(2)}]` : ` [jev: ${e.outcome}]`;
     log(`  #${String(d.seq).padStart(2)} ${label.padEnd(58)} → ${d.action.toUpperCase()}${jev}${why ? `  (${why})` : ""}`);
   };
 
