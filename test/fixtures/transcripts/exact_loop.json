@@ -1,0 +1,43 @@
+[
+  {
+    "id": "exact-loop-same-search",
+    "description": "Identical search four times with identical results.",
+    "expected": "loop",
+    "goal": "Find the official documentation for the JevGuard library.",
+    "events": [
+      { "call": "web_search", "args": { "query": "jevguard documentation" }, "result": "1. jevguard - npm package page 2. GitHub issue: 'where are the docs?' 3. Unrelated: JEV Guard security company" },
+      { "call": "web_search", "args": { "query": "jevguard documentation" }, "result": "1. jevguard - npm package page 2. GitHub issue: 'where are the docs?' 3. Unrelated: JEV Guard security company" },
+      { "call": "web_search", "args": { "query": "jevguard documentation" }, "result": "1. jevguard - npm package page 2. GitHub issue: 'where are the docs?' 3. Unrelated: JEV Guard security company" },
+      { "call": "web_search", "args": { "query": "jevguard documentation" }, "result": "1. jevguard - npm package page 2. GitHub issue: 'where are the docs?' 3. Unrelated: JEV Guard security company" }
+    ],
+    "next": { "tool": "web_search", "args": { "query": "jevguard documentation" } }
+  },
+  {
+    "id": "exact-loop-same-fetch",
+    "description": "Fetches the same page repeatedly, getting the same content.",
+    "expected": "loop",
+    "goal": "Summarize the pricing tiers of the Acme Analytics product.",
+    "events": [
+      { "call": "fetch_page", "args": { "url": "https://acme.example/pricing" }, "result": "Pricing: Starter $29/mo, Team $99/mo, Enterprise contact sales." },
+      { "step": "Reading the pricing page." },
+      { "call": "fetch_page", "args": { "url": "https://acme.example/pricing" }, "result": "Pricing: Starter $29/mo, Team $99/mo, Enterprise contact sales." },
+      { "step": "Reading the pricing page." },
+      { "call": "fetch_page", "args": { "url": "https://acme.example/pricing" }, "result": "Pricing: Starter $29/mo, Team $99/mo, Enterprise contact sales." }
+    ],
+    "next": { "tool": "fetch_page", "args": { "url": "https://acme.example/pricing" } }
+  },
+  {
+    "id": "exact-loop-two-step-cycle",
+    "description": "Cycles between the same search and the same fetch.",
+    "expected": "loop",
+    "goal": "Find the release date of PostgreSQL 17.",
+    "events": [
+      { "call": "web_search", "args": { "query": "PostgreSQL 17 release date" }, "result": "1. postgresql.org/about/news/postgresql-17-released 2. Wikipedia: PostgreSQL" },
+      { "call": "fetch_page", "args": { "url": "https://www.postgresql.org/about/news/postgresql-17-released/" }, "result": "PostgreSQL 17 Released! Posted on 2024-09-26 by PostgreSQL Global Development Group." },
+      { "call": "web_search", "args": { "query": "PostgreSQL 17 release date" }, "result": "1. postgresql.org/about/news/postgresql-17-released 2. Wikipedia: PostgreSQL" },
+      { "call": "fetch_page", "args": { "url": "https://www.postgresql.org/about/news/postgresql-17-released/" }, "result": "PostgreSQL 17 Released! Posted on 2024-09-26 by PostgreSQL Global Development Group." },
+      { "call": "web_search", "args": { "query": "PostgreSQL 17 release date" }, "result": "1. postgresql.org/about/news/postgresql-17-released 2. Wikipedia: PostgreSQL" }
+    ],
+    "next": { "tool": "fetch_page", "args": { "url": "https://www.postgresql.org/about/news/postgresql-17-released/" } }
+  }
+]
