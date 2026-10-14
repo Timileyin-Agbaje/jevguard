@@ -1,0 +1,73 @@
+[
+  {
+    "id": "normal-paging",
+    "description": "Pages through search results; same query, different page, new results each time.",
+    "expected": "ok",
+    "goal": "List open-source vector databases and their licenses.",
+    "events": [
+      { "call": "web_search", "args": { "query": "open source vector database", "page": 1 }, "result": "1. Qdrant (Apache-2.0) 2. Milvus (Apache-2.0) 3. Weaviate (BSD-3)" },
+      { "call": "web_search", "args": { "query": "open source vector database", "page": 2 }, "result": "1. Chroma (Apache-2.0) 2. LanceDB (Apache-2.0) 3. Vespa (Apache-2.0)" },
+      { "call": "web_search", "args": { "query": "open source vector database", "page": 3 }, "result": "1. pgvector (PostgreSQL License) 2. Marqo (Apache-2.0)" }
+    ],
+    "next": { "tool": "web_search", "args": { "query": "open source vector database", "page": 4 } }
+  },
+  {
+    "id": "normal-reread-after-edit",
+    "description": "Re-fetches a page after the agent's earlier step changed what it is looking for.",
+    "expected": "ok",
+    "goal": "Find both the release date and the license change of Redis 7.4.",
+    "events": [
+      { "call": "fetch_page", "args": { "url": "https://redis.example/blog/redis-7-4" }, "result": "Redis 7.4 released 2024-07-29 with hash field expiration." },
+      { "step": "Have the release date. The same post may mention licensing further down; re-reading the licensing section." },
+      { "call": "fetch_page", "args": { "url": "https://redis.example/blog/redis-7-4#licensing" }, "result": "Starting with 7.4, Redis is dual-licensed under RSALv2 and SSPLv1." }
+    ],
+    "next": { "tool": "web_search", "args": { "query": "Redis license change reaction Valkey fork" } }
+  },
+  {
+    "id": "normal-per-item-lookups",
+    "description": "Same tool, same argument shape, one call per item in a list.",
+    "expected": "ok",
+    "goal": "Get the current stable version of Node.js, Deno and Bun.",
+    "events": [
+      { "call": "fetch_page", "args": { "url": "https://nodejs.example/en/download" }, "result": "Node.js 22.11.0 (LTS)" },
+      { "call": "fetch_page", "args": { "url": "https://deno.example/releases" }, "result": "Deno 2.0.4" }
+    ],
+    "next": { "tool": "fetch_page", "args": { "url": "https://bun.example/releases" } }
+  },
+  {
+    "id": "normal-one-retry-then-success",
+    "description": "One timeout, a retry that succeeds, then moves on.",
+    "expected": "ok",
+    "goal": "Summarize the abstract of the FlashAttention-3 paper.",
+    "events": [
+      { "call": "fetch_page", "args": { "url": "https://arxiv.org/abs/2407.08608" }, "error": "Timeout after 30s" },
+      { "call": "fetch_page", "args": { "url": "https://arxiv.org/abs/2407.08608" }, "result": "FlashAttention-3: Fast and Accurate Attention with Asynchrony and Low-precision. Achieves 1.5-2.0x speedup on H100." },
+      { "step": "Got the abstract; checking the reported FP8 accuracy numbers." }
+    ],
+    "next": { "tool": "web_search", "args": { "query": "FlashAttention-3 FP8 accuracy error" } }
+  },
+  {
+    "id": "normal-verify-claim",
+    "description": "Searches the same fact in two independent sources to verify it.",
+    "expected": "ok",
+    "goal": "Verify the height of Mount Kilimanjaro using two independent sources.",
+    "events": [
+      { "call": "web_search", "args": { "query": "Mount Kilimanjaro height" }, "result": "Britannica: 5,895 m (19,341 ft)" },
+      { "call": "web_search", "args": { "query": "Kilimanjaro elevation Tanzania National Parks official" }, "result": "TANAPA: Uhuru Peak 5,895 m" },
+      { "step": "Two sources agree on 5,895 m. Writing the answer." }
+    ],
+    "next": { "tool": "fetch_page", "args": { "url": "https://www.britannica.com/place/Kilimanjaro" } }
+  },
+  {
+    "id": "normal-incremental-reading",
+    "description": "Reads consecutive sections of a long document.",
+    "expected": "ok",
+    "goal": "Summarize the key changes in the EU AI Act's final text.",
+    "events": [
+      { "call": "fetch_page", "args": { "url": "https://eur-lex.example/ai-act", "section": 1 }, "result": "Title I: scope and definitions; AI system definition aligned with OECD." },
+      { "call": "fetch_page", "args": { "url": "https://eur-lex.example/ai-act", "section": 2 }, "result": "Title II: prohibited practices, including social scoring and untargeted facial scraping." },
+      { "call": "fetch_page", "args": { "url": "https://eur-lex.example/ai-act", "section": 3 }, "result": "Title III: high-risk systems, conformity assessment and obligations for providers." }
+    ],
+    "next": { "tool": "fetch_page", "args": { "url": "https://eur-lex.example/ai-act", "section": 4 } }
+  }
+]

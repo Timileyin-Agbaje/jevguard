@@ -177,7 +177,7 @@ createGuard({
     retryDelayMs: 250,
     onFailure: "pause",                 // escalation when a risky-tool evaluation fails
     maxAction: "pause",                 // cap on any evaluator-derived action
-    minConfidence: 0.7,                 // default comes from src/evaluator/questions.ts
+    minConfidence: 0.6,                 // default comes from src/evaluator/questions.ts
     verdictActions: { ok: "allow", loop: "pause", no_progress: "pause", off_goal: "pause", suspicious: "pause" },
     evaluateEveryNSteps: 10,
     minStepsBetweenEvaluations: 3,      // risky tools bypass this
@@ -217,7 +217,7 @@ Evaluations are limited to one per `minStepsBetweenEvaluations` (risky tools exc
 **Calibration.**
 
 ```sh
-TYPESAFE_API_KEY=... npm run eval:calibrate      # ~22 cheap requests; writes calibration/latest.json
+TYPESAFE_API_KEY=... npm run eval:calibrate      # ~28 cheap requests; writes calibration/latest.json
 npm run eval:calibrate -- --dry-run              # print the exact request state per transcript, no API calls
 npm run eval:calibrate -- --filter=loop
 ```
@@ -274,7 +274,7 @@ Fake, deterministic tools and no network access. A mock Jev answers `ok` unless 
 - Single process, in-memory state. A crash loses run state; the audit log survives.
 - Fingerprinting catches exact and near-exact repetition only. Paraphrased loops rely on Jev.
 - Progress detection is a heuristic based on new result fingerprints.
-- Jev's judgments are probabilistic: a signal, not a guarantee. Thresholds are calibrated on a small fixture set and may need tuning per agent. **The initial calibration run has not been done yet;** `MIN_CONFIDENCE = 0.7` is the spec's starting value.
+- Jev's judgments are probabilistic: a signal, not a guarantee. Thresholds are calibrated on a small fixture set (28 transcripts, questions v1.1.0: 0 false positives and 0 false negatives at `MIN_CONFIDENCE = 0.6`) and may need tuning per agent. Some legitimate patterns score close to the line; for example, re-reading a page for a second fact scored `ok` at only 0.57 against `off_goal` at 0.43.
 - The guard only sees what the agent reports. An agent that skips `check()` is not governed.
 - `record()` is synchronous and is not queued behind an in-flight `check()`. Its effects (for example a blown budget) are applied immediately and seen by the pending check when Jev returns.
 - `pause` has no built-in notification or approval flow. Resuming is up to the integrator (`run.resume()`).

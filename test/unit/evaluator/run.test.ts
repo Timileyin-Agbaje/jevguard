@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { evaluatorAction, runEvaluation } from "../../../src/evaluator/run.js";
+import { MIN_CONFIDENCE } from "../../../src/evaluator/questions.js";
 import { MockEvaluator } from "../../../src/evaluator/mock.js";
 import { EvaluatorRequestError, isRetryableError, type BehaviorEvaluator } from "../../../src/evaluator/types.js";
 import { parseConfig } from "../../../src/schemas/config.js";
@@ -153,11 +154,11 @@ describe("runEvaluation", () => {
 
 describe("evaluatorAction (verdict → action)", () => {
   it("acts on a non-ok verdict at or above minConfidence", () => {
-    expect(evaluatorAction({ verdict: "loop", confidence: 0.7 }, cfg())).toEqual({ action: "pause", actedOn: true });
+    expect(evaluatorAction({ verdict: "loop", confidence: MIN_CONFIDENCE }, cfg())).toEqual({ action: "pause", actedOn: true });
   });
 
   it("treats a non-ok verdict below minConfidence as allow", () => {
-    expect(evaluatorAction({ verdict: "loop", confidence: 0.69 }, cfg())).toEqual({ action: "allow", actedOn: false });
+    expect(evaluatorAction({ verdict: "loop", confidence: MIN_CONFIDENCE - 0.01 }, cfg())).toEqual({ action: "allow", actedOn: false });
   });
 
   it("maps ok to allow regardless of confidence", () => {
