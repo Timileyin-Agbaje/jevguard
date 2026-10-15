@@ -120,7 +120,7 @@ An `allow` decision can still carry *warning* reasons (`details.level: "warning"
 | Evaluator failure | Timeouts, network errors and invalid output return the policy decision with an `evaluator_unavailable` reason. If the evaluation was triggered by a risky (medium/high) tool, the action is escalated to `evaluator.onFailure` (default `pause`). Nothing is thrown to the agent. |
 | `stop` is terminal | Every later `check()` and `record()` returns `stop` with reason `run_stopped`. |
 | `pause` is sticky | Every later `check()` returns `pause` with reason `run_paused` until `run.resume()`. `record()` on a paused run still updates usage, and it escalates to `stop` if a hard limit is crossed. |
-| Resume | `resume({ by, note })` is audited. It restarts the *soft* signals (progress, consecutive failures, repetition windows) from the resume point, and approves the call that was paused, so re-submitting that same `callId` is allowed once. Hard limits (steps, tool calls, tokens, cost, wall clock) are not reset. `resume()` on a run that isn't paused throws. |
+| Resume | `resume({ by, note })` is audited. It restarts the *soft* signals (progress, consecutive failures, repetition windows) from the resume point, and approves the call that was paused: re-submitting the same `callId` with the same tool and arguments is allowed once. Reusing that `callId` for a different action needs a new approval. Hard limits (steps, tool calls, tokens, cost, wall clock) are not reset. `resume()` on a run that isn't paused throws. |
 | In-flight changes | If the run is stopped (`stop()` or a `record()` that crosses a hard limit) while a `check()` is waiting on Jev, the in-flight evaluation is aborted and the check returns `stop`. |
 | Audit first | Every decision is enqueued to the audit sink before it is returned. |
 
@@ -134,7 +134,7 @@ A **step** is one `tool_call_proposed` or one `agent_step`.
 | `maxToolCalls` | tool calls ≥ `limit` | 100 | `stop` |
 | `tokenBudget` | total tokens > `limit` | off | `stop`; warning at 80% |
 | `costBudget` | total cost > `limitUsd` | off | `stop`; warning at 80% |
-| `wallClock` | elapsed > `limitMs` | 30 min | `stop` |
+| `wallClock` | elapsed > `limitMs` (re-checked after waiting on Jev) | 30 min | `stop` |
 | `consecutiveFailures` | same tool fails `limit` times in a row | 3 | `pause` |
 | `repeatedCall` | same call fingerprint ≥ `limit` times in the last `window` events, checked on the *proposed* call | 3 in 10 | `pause` before the call runs |
 | `repeatedError` | same error fingerprint ≥ `limit` times in the last `window` events | 3 in 20 | `pause` |
@@ -163,8 +163,8 @@ createGuard({
     costBudget:          { limitUsd: undefined, warnAtFraction: 0.8 },
     wallClock:           { enabled: true, limitMs: 1_800_000 },
     consecutiveFailures: { enabled: true, limit: 3 },
-    repeatedCall:        { enabled: true, limit: 3, window: 10 },   // window ≤ windowSize
-    repeatedError:       { enabled: true, limit: 3, window: 20 },   // window ≤ windowSize
+    repeatedCall:        { enabled: true, limit: 3, window: 10 },   // limit ≤ window ≤ windowSize
+    repeatedError:       { enabled: true, limit: 3, window: 20 },   // limit ≤ window ≤ windowSize
     noProgress:          { enabled: true, warnAfterSteps: 8, pauseAfterSteps: 15 },
     riskyTool:           { enabled: true },
   },
@@ -233,7 +233,7 @@ interface BehaviorEvaluator {
 }
 ```
 
-Throw `EvaluatorRequestError({ status, retryable })` to control retries. `MockEvaluator` is a scripted implementation for tests: results, delays, hangs, thrown errors and malformed output.
+Throw `new EvaluatorRequestError("request failed", { status, retryable })` to control retries. `MockEvaluator` is a scripted implementation for tests: results, delays, hangs, thrown errors and malformed output.
 
 ## Audit log
 
@@ -241,7 +241,7 @@ By default each run is written to `audit/<runId>.jsonl` by a `JsonlFileSink`. Us
 
 Record kinds: `run_started` (goal, metadata, config hash, `questionsVersion`), `event`, `evaluation` (trigger, outcome, attempts, latency, verdict, confidence, scores, whether it was acted on), `decision`, `resume` and `run_ended`. Every record has `schemaVersion`, `runId`, `seq` and `ts`.
 
-- Untrusted or free-text content (events, goal, metadata, notes) is redacted with the configured patterns. The identity in `resume.by` is kept.
+- Untrusted or free-text content (events, goal, metadata, notes, decision reason messages) is redacted with the configured patterns. The identity in `resume.by` is kept.
 - Event payloads (`args`, `output`, `error`, `summary`) longer than `audit.maxOutputChars` are stored as `{ truncated: true, preview, sha256, length }`. The hash is of the full redacted value.
 - Sink failures, sync or async, are reported to `config.onError` and never reach the agent.
 
