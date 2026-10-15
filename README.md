@@ -192,6 +192,7 @@ createGuard({
   redaction: {
     patterns: DEFAULT_REDACTION_PATTERNS, // RegExp or string; API keys, bearer tokens, JWTs, key=value secrets, emails
     replacement: "[REDACTED]",
+    secretKeys: DEFAULT_SECRET_KEYS,    // object keys whose values are always redacted: password, api_key, *token, cookie, ...
   },
   onError: (error, { runId, where }) => console.error(...), // audit sink failures land here
 });
