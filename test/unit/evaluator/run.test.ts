@@ -73,6 +73,27 @@ describe("runEvaluation", () => {
     expect(await p).toMatchObject({ outcome: "ok", attempts: 2 });
   });
 
+  it("a deadline during retry backoff returns timeout without starting another attempt (no unhandled rejection)", async () => {
+    vi.useFakeTimers();
+    const mock = new MockEvaluator([{ kind: "throw", error: { status: 500 } }, MockEvaluator.verdict("ok", 1)]);
+    const p = runEvaluation(mock, input, cfg({ timeoutMs: 100, retryDelayMs: 500 }), clock);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(await p).toMatchObject({ outcome: "timeout", attempts: 1 });
+    expect(mock.calls).toHaveLength(1);
+  });
+
+  it("a cancel during retry backoff returns an error without starting another attempt", async () => {
+    vi.useFakeTimers();
+    const ac = new AbortController();
+    const mock = new MockEvaluator([{ kind: "throw", error: { status: 503 } }, MockEvaluator.verdict("ok", 1)]);
+    const p = runEvaluation(mock, input, cfg({ retryDelayMs: 500 }), clock, ac.signal);
+    await vi.advanceTimersByTimeAsync(100);
+    ac.abort(new Error("run stopped"));
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(await p).toMatchObject({ outcome: "error", error: "Error: run stopped", attempts: 1 });
+    expect(mock.calls).toHaveLength(1);
+  });
+
   it("does not retry other 4xx or unknown errors", async () => {
     for (const err of [new EvaluatorRequestError("bad", { status: 422 }), { status: 401 }, new Error("weird")]) {
       const mock = new MockEvaluator([{ kind: "throw", error: err }, MockEvaluator.verdict("ok", 1)]);

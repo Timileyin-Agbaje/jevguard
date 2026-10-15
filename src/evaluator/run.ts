@@ -18,7 +18,10 @@ class DeadlineExceeded extends Error {
 
 /** Resolves/rejects with `promise`, or rejects as soon as `signal` aborts (even if the adapter ignores it). */
 function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
-  if (signal.aborted) return Promise.reject(signal.reason);
+  if (signal.aborted) {
+    promise.catch(() => {}); // the caller has given up on it; never leave its rejection unhandled
+    return Promise.reject(signal.reason);
+  }
   return new Promise<T>((resolve, reject) => {
     const onAbort = () => reject(signal.reason);
     signal.addEventListener("abort", onAbort, { once: true });
@@ -62,25 +65,29 @@ export async function runEvaluation(
   else cancel?.addEventListener("abort", onCancel, { once: true });
 
   let attempts = 0;
+  const aborted = (): EvaluationResult => {
+    const reason: unknown = controller.signal.reason;
+    const latencyMs = clock.now() - started;
+    return reason instanceof DeadlineExceeded
+      ? { outcome: "timeout", error: reason.message, latencyMs, attempts }
+      : { outcome: "error", error: message(reason), latencyMs, attempts };
+  };
   try {
     for (;;) {
+      // Deadline or cancel may have fired during the retry backoff: don't start another attempt.
+      if (controller.signal.aborted) return aborted();
       attempts++;
       let raw: unknown;
       try {
         raw = await raceAbort(Promise.resolve().then(() => evaluator.evaluate(input, { signal: controller.signal })), controller.signal);
       } catch (err) {
         const latencyMs = clock.now() - started;
-        if (controller.signal.aborted) {
-          const reason: unknown = controller.signal.reason;
-          return reason instanceof DeadlineExceeded
-            ? { outcome: "timeout", error: reason.message, latencyMs, attempts }
-            : { outcome: "error", error: message(reason), latencyMs, attempts };
-        }
+        if (controller.signal.aborted) return aborted();
         if (attempts <= config.maxRetries && isRetryableError(err)) {
           try {
             await sleep(config.retryDelayMs, controller.signal);
           } catch {
-            /* deadline hit while backing off; the next attempt reports it */
+            /* deadline or cancel during backoff; handled at the top of the loop */
           }
           continue;
         }

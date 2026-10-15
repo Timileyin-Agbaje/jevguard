@@ -254,6 +254,23 @@ describe("evaluator integration", () => {
     expect(codes(d)[0]).toBe("run_stopped");
   });
 
+  it("the wall-clock limit is re-checked after waiting on the evaluator", async () => {
+    let advance = (_ms: number) => {};
+    const slowOk = {
+      evaluate: async () => {
+        advance(500); // the evaluation takes 500 ms
+        return { verdict: "ok", confidence: 1 };
+      },
+    };
+    const { run, clock } = makeRun({ ...everyStep, policies: { wallClock: { limitMs: 1_000 } } }, { evaluator: slowOk });
+    advance = (ms) => clock.advance(ms);
+    clock.advance(900); // check starts under the limit…
+    const d = await run.check(call("web_search"));
+    expect(d.action).toBe("stop"); // …but would have run after it
+    expect(codes(d)).toContain("budget_time");
+    expect(run.getState().status).toBe("stopped");
+  });
+
   it("without an evaluator, decisions carry no evaluation field", async () => {
     const { run } = makeRun({ tools });
     expect((await run.check(call("send_email"))).evaluation).toBeUndefined();

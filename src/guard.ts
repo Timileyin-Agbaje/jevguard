@@ -266,6 +266,18 @@ class GuardedRun implements Run {
       });
     }
 
+    // Hard time limit, re-checked with the current clock: the evaluator wait may have crossed it.
+    const late = runPolicies(
+      this.ctx.policies.filter((p) => p.id === "wallClock"),
+      this.state,
+      { ...recorded, ts: this.ctx.clock.now() },
+      config,
+    );
+    if (late.action === "stop" && action !== "stop") {
+      action = "stop";
+      reasons.push(...late.reasons);
+    }
+
     // The run may have been stopped or paused (via stop() or record()) while the evaluator ran.
     const current = this.state.status;
     if (current === "stopped" || current === "ended") return this.finalize(recorded.seq, "stop", [runStoppedReason(), ...reasons], evaluation);
