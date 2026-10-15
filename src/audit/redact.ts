@@ -1,0 +1,65 @@
+import { sha256 } from "../state/fingerprint.js";
+
+/** Default secret patterns. Applied to the audit log and to evaluator input. */
+export const DEFAULT_REDACTION_PATTERNS: readonly RegExp[] = [
+  /\bsk-(?:ant-)?[A-Za-z0-9_-]{16,}/g, // OpenAI / Anthropic style keys
+  /\bAKIA[0-9A-Z]{16}\b/g, // AWS access key id
+  /\bgh[pousr]_[A-Za-z0-9]{30,}\b/g, // GitHub tokens
+  /\bxox[abprs]-[A-Za-z0-9-]{10,}/g, // Slack tokens
+  /\bAIza[0-9A-Za-z_-]{35}\b/g, // Google API keys
+  /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g, // JWTs
+  /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi, // bearer tokens
+  /\b(?:api[_-]?key|(?:access|auth|refresh)[_-]?token|token|secret|password|passwd)\b["']?\s*[:=]\s*["']?[^\s"',;&)\]}]+/gi, // key=value secrets
+  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, // email addresses
+];
+
+export const DEFAULT_REDACTION_REPLACEMENT = "[REDACTED]";
+
+export interface Redactor {
+  (text: string): string;
+}
+
+function toGlobal(pattern: string | RegExp): RegExp {
+  if (typeof pattern === "string") return new RegExp(pattern, "g");
+  return pattern.flags.includes("g") ? new RegExp(pattern.source, pattern.flags) : new RegExp(pattern.source, `${pattern.flags}g`);
+}
+
+export function createRedactor(patterns: ReadonlyArray<string | RegExp>, replacement = DEFAULT_REDACTION_REPLACEMENT): Redactor {
+  const compiled = patterns.map(toGlobal);
+  return (text) => compiled.reduce((acc, re) => acc.replace(re, replacement), text);
+}
+
+/** Redacts every string (keys excluded) inside a JSON-like value. Returns a new value. */
+export function redactDeep<T>(value: T, redact: Redactor): T {
+  if (typeof value === "string") return redact(value) as T;
+  if (Array.isArray(value)) return value.map((v) => redactDeep(v, redact)) as T;
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) out[k] = redactDeep(v, redact);
+    return out as T;
+  }
+  return value;
+}
+
+export interface TruncatedValue {
+  truncated: true;
+  /** First `maxChars` characters of the (redacted) value, JSON-encoded if not a string. */
+  preview: string;
+  /** sha256 of the full (redacted) value. */
+  sha256: string;
+  length: number;
+}
+
+/** Replaces a value whose text form is longer than `maxChars` with a preview and a hash. */
+export function truncateValue(value: unknown, maxChars: number): unknown {
+  if (value === undefined) return value;
+  const text = typeof value === "string" ? value : JSON.stringify(value);
+  if (text === undefined || text.length <= maxChars) return value;
+  const truncated: TruncatedValue = { truncated: true, preview: text.slice(0, maxChars), sha256: sha256(text), length: text.length };
+  return truncated;
+}
+
+/** Truncates a string for display; appends a marker with the original length. */
+export function clip(text: string, maxChars: number): string {
+  return text.length <= maxChars ? text : `${text.slice(0, maxChars)}…[+${text.length - maxChars} chars]`;
+}
