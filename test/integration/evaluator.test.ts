@@ -271,6 +271,22 @@ describe("evaluator integration", () => {
     expect(run.getState().status).toBe("stopped");
   });
 
+  it("evaluator error messages are redacted in the audit log", async () => {
+    const { run, sink } = setup([{ kind: "throw", error: new Error("401 for key sk-ant-api03-LEAKLEAKLEAKLEAKLEAK") }]);
+    await run.check(call("web_search"));
+    const rec = sink.records.find((r) => r.kind === "evaluation");
+    expect(rec).toMatchObject({ outcome: "error" });
+    expect(JSON.stringify(sink.records)).not.toContain("LEAKLEAK");
+  });
+
+  it("tool names and secret-named args are redacted before reaching the evaluator", async () => {
+    const { run, evaluator } = setup([MockEvaluator.verdict("ok", 1)]);
+    await run.check(call("mail_admin@corp.example", { password: "hunter22", query: "x" }));
+    const sent = JSON.stringify(evaluator.calls);
+    expect(sent).not.toContain("admin@corp.example");
+    expect(sent).not.toContain("hunter22");
+  });
+
   it("without an evaluator, decisions carry no evaluation field", async () => {
     const { run } = makeRun({ tools });
     expect((await run.check(call("send_email"))).evaluation).toBeUndefined();

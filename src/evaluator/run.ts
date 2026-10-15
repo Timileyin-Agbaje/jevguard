@@ -38,8 +38,20 @@ function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
   });
 }
 
+/** Waits `ms`, or rejects as soon as `signal` aborts. The timer never outlives the wait. */
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return raceAbort(new Promise<void>((r) => setTimeout(r, ms)), signal);
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise<void>((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 function message(err: unknown): string {

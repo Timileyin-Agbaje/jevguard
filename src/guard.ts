@@ -354,7 +354,11 @@ export function sanitizeAuditRecord(record: AuditRecord, redact: Redactor, maxCh
     case "resume":
       return record.note === undefined ? record : { ...record, note: redact(record.note) };
     case "evaluation":
-      return record.rationale === undefined ? record : { ...record, rationale: redact(record.rationale) };
+      return {
+        ...record,
+        ...(record.rationale !== undefined ? { rationale: redact(record.rationale) } : {}),
+        ...(record.error !== undefined ? { error: redact(record.error) } : {}),
+      };
     case "decision": {
       // Reason messages can carry caller text (e.g. stop({ reason })) and tool names.
       const reasons = record.decision.reasons.map((r) => ({

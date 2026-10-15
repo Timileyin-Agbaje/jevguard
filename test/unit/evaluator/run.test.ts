@@ -82,6 +82,15 @@ describe("runEvaluation", () => {
     expect(mock.calls).toHaveLength(1);
   });
 
+  it("no backoff timer outlives a deadline (Node is not kept alive)", async () => {
+    vi.useFakeTimers();
+    const mock = new MockEvaluator([{ kind: "throw", error: { status: 500 } }, MockEvaluator.verdict("ok", 1)]);
+    const p = runEvaluation(mock, input, cfg({ timeoutMs: 100, retryDelayMs: 60_000 }), clock);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(await p).toMatchObject({ outcome: "timeout" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("a cancel during retry backoff returns an error without starting another attempt", async () => {
     vi.useFakeTimers();
     const ac = new AbortController();

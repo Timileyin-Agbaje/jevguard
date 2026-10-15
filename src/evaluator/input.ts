@@ -1,4 +1,4 @@
-import { clip, type Redactor } from "../audit/redact.js";
+import { clip, redactDeep, type Redactor } from "../audit/redact.js";
 import type { PolicyResult } from "../policies/types.js";
 import { toolRisk } from "../policies/risk.js";
 import type { GuardConfig } from "../schemas/config.js";
@@ -22,12 +22,13 @@ export function buildEvaluationInput(
   now: number,
 ): EvaluationInput {
   const max = config.evaluator.maxCharsPerField;
-  const text = (v: unknown) => clip(redact(typeof v === "string" ? v : stableStringify(v)), max);
+  // Objects are redacted structurally first (secret-named keys), then as text (secret-looking values).
+  const text = (v: unknown) => clip(redact(typeof v === "string" ? v : stableStringify(redactDeep(v, redact))), max);
   const p = config.policies;
 
   const summarize = (e: RecordedEvent): EventSummary => {
     const s: EventSummary = { seq: e.seq, type: e.type };
-    if (e.tool !== undefined) s.tool = e.tool;
+    if (e.tool !== undefined) s.tool = text(e.tool);
     switch (e.type) {
       case "tool_call_proposed":
         s.args = text(e.args);
@@ -67,7 +68,7 @@ export function buildEvaluationInput(
     trigger,
   };
   if (event.type === "tool_call_proposed") {
-    input.proposedAction = { tool: event.tool, args: text(event.args), risk: toolRisk(event.tool, config) };
+    input.proposedAction = { tool: text(event.tool), args: text(event.args), risk: toolRisk(event.tool, config) };
   }
   return input;
 }
