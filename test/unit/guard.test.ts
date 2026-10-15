@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { AuditSink } from "../../src/audit/sink.js";
 import { createGuard } from "../../src/guard.js";
 import type { Policy } from "../../src/policies/types.js";
 import { manualClock } from "../../src/util/clock.js";
@@ -163,5 +164,27 @@ describe("guard API and run lifecycle", () => {
     expect(d.action).toBe("pause");
     expect(run.getState().status).toBe("paused");
     expect(run.getDecisions()[0]?.reasons[0]?.details).toEqual({ sym: null, n: 1, big: "2" }); // functions dropped, as in the JSON audit record
+  });
+
+  it("Invariant 6: a decision with non-JSON custom details is still audited, by every sink", async () => {
+    const odd: Policy = {
+      id: "odd",
+      evaluate: () => ({
+        action: "pause",
+        reasons: [{ code: "manual", source: "policy", policyId: "odd", message: "odd", details: { fn: () => 1, sym: Symbol("s"), big: 2n } }],
+        triggerEvaluation: false,
+      }),
+    };
+    const onError = vi.fn();
+    const memory = new ArraySink();
+    const lines: string[] = [];
+    const jsonLike: AuditSink = { write: (r) => void lines.push(JSON.stringify(r)), flush: async () => {} };
+    for (const sink of [memory, jsonLike]) {
+      const run = createGuard({ onError }, { sink, clock: manualClock(), ids: sequentialIds(), policies: [odd] }).startRun({ goal: "g" });
+      expect((await run.check(call("t"))).action).toBe("pause");
+    }
+    expect(onError).not.toHaveBeenCalled();
+    expect(memory.records.filter((r) => r.kind === "decision")).toHaveLength(1);
+    expect(lines.filter((l) => l.includes('"kind":"decision"'))).toHaveLength(1);
   });
 });

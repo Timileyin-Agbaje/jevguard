@@ -231,7 +231,8 @@ class GuardedRun implements Run {
       }
     }
     this.state = next;
-    this.audit({ kind: "decision", seq, ts: decision.ts, decision });
+    // Audit a JSON-safe copy too, so every sink can write it (invariant 6).
+    this.audit({ kind: "decision", seq, ts: decision.ts, decision: copyDecision(decision) });
     return decision;
   }
 
@@ -283,21 +284,18 @@ export function sanitizeAuditRecord(record: AuditRecord, redact: Redactor, maxCh
 }
 
 /**
- * Deep copy for the run history. Custom policies may put non-cloneable values (functions,
- * symbols) in reason details; those are kept in JSON form instead of making finalize() throw.
+ * JSON-safe deep copy of a decision, used for the run history and the audit log. Custom policies
+ * may put any value in reason details; functions are dropped, symbols become null and bigints
+ * become strings, so neither structuredClone nor JSON serialization can fail.
  */
 export function copyDecision(decision: Decision): Decision {
-  try {
-    return structuredClone(decision);
-  } catch {
-    return {
-      ...structuredClone({ ...decision, reasons: [] }),
-      reasons: decision.reasons.map((r) => ({
-        ...r,
-        ...(r.details ? { details: JSON.parse(stableStringify(r.details)) as Record<string, unknown> } : {}),
-      })),
-    };
-  }
+  return {
+    ...structuredClone({ ...decision, reasons: [] }),
+    reasons: decision.reasons.map((r) => ({
+      ...r,
+      ...(r.details ? { details: JSON.parse(stableStringify(r.details)) as Record<string, unknown> } : {}),
+    })),
+  };
 }
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
