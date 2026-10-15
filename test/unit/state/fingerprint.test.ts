@@ -48,4 +48,10 @@ describe("fingerprints", () => {
     expect(resultFingerprint({ b: 1, a: "X" })).toBe(resultFingerprint({ a: "x", b: 1 }));
     expect(resultFingerprint("a")).not.toBe(resultFingerprint("b"));
   });
+
+  it("a __proto__ key is kept as data, so such results are not mistaken for {}", () => {
+    const withProto = JSON.parse('{"__proto__":{"value":1}}') as unknown;
+    expect(resultFingerprint(withProto)).not.toBe(resultFingerprint({}));
+    expect(canonicalJSON(withProto)).toBe('{"__proto__":{"value":1}}');
+  });
 });

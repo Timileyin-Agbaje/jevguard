@@ -69,6 +69,8 @@ describe("config schema", () => {
     ["warn after pause", { policies: { noProgress: { warnAfterSteps: 15, pauseAfterSteps: 8 } } }],
     ["window larger than windowSize", { windowSize: 5, policies: { repeatedCall: { window: 10 } } }],
     ["invalid regex", { redaction: { patterns: ["(unclosed"] } }],
+    ["repeatedCall limit > window (can never fire)", { policies: { repeatedCall: { limit: 3, window: 2 } } }],
+    ["repeatedError limit > window (can never fire)", { policies: { repeatedError: { limit: 5, window: 4 } } }],
     ["onError not a function", { onError: "nope" }],
   ])("rejects %s", (_name, input) => {
     expect(() => parseConfig(input as never)).toThrow();
@@ -78,5 +80,9 @@ describe("config schema", () => {
     const c = parseConfig({ redaction: { patterns: ["secret-\\d+", /token/i] }, onError: () => {} });
     expect(c.redaction.patterns).toHaveLength(2);
     expect(typeof c.onError).toBe("function");
+  });
+
+  it("allows limit > window when the policy is disabled", () => {
+    expect(() => parseConfig({ policies: { repeatedCall: { enabled: false, limit: 3, window: 2 } } })).not.toThrow();
   });
 });

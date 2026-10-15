@@ -36,4 +36,18 @@ describe("riskyTool policy", () => {
     expect((await run.check(call("shell", {}, "s1"))).action).toBe("allow");
     expect((await run.check(call("shell", {}, "s2"))).action).toBe("pause");
   });
+
+  it("approval does not carry over to a different action reusing the paused callId", async () => {
+    const { run } = makeRun({ tools });
+    expect((await run.check(call("shell", { cmd: "ls" }, "s1"))).action).toBe("pause");
+    run.resume({ by: "admin" });
+    const swapped = await run.check(call("shell", { cmd: "rm -rf /" }, "s1"));
+    expect(swapped.action).toBe("pause");
+    expect(codes(swapped)).toEqual(["risky_tool"]);
+  });
+
+  it("a tool named like an Object.prototype member uses defaultToolRisk", async () => {
+    const { run } = makeRun({ tools, defaultToolRisk: "high" });
+    expect((await run.check(call("constructor"))).action).toBe("pause");
+  });
 });

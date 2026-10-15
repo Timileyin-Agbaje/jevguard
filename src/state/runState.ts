@@ -41,8 +41,16 @@ export interface RunState {
   baselineSeq: number;
   /** The call a pause decision was made on, if any. */
   pausedOnCallId?: string;
-  /** Set by resume(); the next check() with this callId is treated as approved. */
+  /** Call fingerprint (tool + args) of that paused call. */
+  pausedOnFingerprint?: string;
+  /** Set by resume(); the next check() with this callId AND the same tool + args is treated as approved. */
   approvedCallId?: string;
+  approvedFingerprint?: string;
+}
+
+/** Own-property lookup, so keys like "constructor" or "__proto__" never resolve to inherited values. */
+export function own<T>(record: Readonly<Record<string, T>>, key: string): T | undefined {
+  return Object.hasOwn(record, key) ? record[key] : undefined;
 }
 
 export function initialRunState(init: {
@@ -79,18 +87,16 @@ export function initialRunState(init: {
 export function enrichEvent(state: RunState, event: GuardEvent, seq: number, ts: number): RecordedEvent {
   const base = { runId: state.runId, seq, ts };
   switch (event.type) {
-    case "tool_call_proposed":
-      return {
-        ...event,
-        ...base,
-        tool: event.tool,
-        fingerprint: callFingerprint(event.tool, event.args),
-        ...(state.approvedCallId === event.callId ? { approved: true } : {}),
-      };
+    case "tool_call_proposed": {
+      const fingerprint = callFingerprint(event.tool, event.args);
+      // Approval covers exactly the call a human saw: same callId, same tool and arguments.
+      const approved = state.approvedCallId === event.callId && state.approvedFingerprint === fingerprint;
+      return { ...event, ...base, tool: event.tool, fingerprint, ...(approved ? { approved: true } : {}) };
+    }
     case "tool_result":
-      return { ...event, ...base, tool: state.callTools[event.callId] ?? UNKNOWN_TOOL, fingerprint: resultFingerprint(event.output) };
+      return { ...event, ...base, tool: own(state.callTools, event.callId) ?? UNKNOWN_TOOL, fingerprint: resultFingerprint(event.output) };
     case "tool_error":
-      return { ...event, ...base, tool: state.callTools[event.callId] ?? UNKNOWN_TOOL, fingerprint: errorFingerprint(event.error) };
+      return { ...event, ...base, tool: own(state.callTools, event.callId) ?? UNKNOWN_TOOL, fingerprint: errorFingerprint(event.error) };
     case "agent_step":
       return { ...event, ...base };
   }
@@ -103,6 +109,7 @@ export function applyEvent(state: RunState, event: RecordedEvent, windowSize: nu
   if (event.type === "tool_call_proposed" && event.approved) {
     // A human-approved re-proposal of a call that was already counted when it was first proposed.
     delete next.approvedCallId;
+    delete next.approvedFingerprint;
     return next;
   }
 
@@ -116,6 +123,7 @@ export function applyEvent(state: RunState, event: RecordedEvent, windowSize: nu
       next.toolCalls = state.toolCalls + 1;
       next.callTools = { ...state.callTools, [event.callId]: event.tool };
       delete next.approvedCallId;
+      delete next.approvedFingerprint;
       break;
     case "agent_step":
       next.steps = state.steps + 1;
@@ -133,7 +141,7 @@ export function applyEvent(state: RunState, event: RecordedEvent, windowSize: nu
     }
     case "tool_error": {
       const tool = event.tool ?? UNKNOWN_TOOL;
-      next.consecutiveFailures = { ...state.consecutiveFailures, [tool]: (state.consecutiveFailures[tool] ?? 0) + 1 };
+      next.consecutiveFailures = { ...state.consecutiveFailures, [tool]: (own(state.consecutiveFailures, tool) ?? 0) + 1 };
       break;
     }
   }
@@ -159,6 +167,10 @@ export function resumeState(state: RunState, seq: number): RunState {
     consecutiveFailures: {},
   };
   delete next.pausedOnCallId;
-  if (state.pausedOnCallId !== undefined) next.approvedCallId = state.pausedOnCallId;
+  delete next.pausedOnFingerprint;
+  if (state.pausedOnCallId !== undefined && state.pausedOnFingerprint !== undefined) {
+    next.approvedCallId = state.pausedOnCallId;
+    next.approvedFingerprint = state.pausedOnFingerprint;
+  }
   return next;
 }

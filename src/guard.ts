@@ -92,6 +92,8 @@ class GuardedRun implements Run {
   readonly id: string;
   private state: RunState;
   private readonly queue = new SerialQueue();
+  /** The most recently ingested proposal, so a pause can record exactly what was paused. */
+  private lastProposal: { callId: string; fingerprint: string } | undefined;
 
   constructor(
     private readonly ctx: RunContext,
@@ -201,6 +203,7 @@ class GuardedRun implements Run {
   private ingest(event: GuardEvent) {
     const seq = this.state.lastSeq + 1;
     const recorded = enrichEvent(this.state, event, seq, this.ctx.clock.now());
+    if (recorded.type === "tool_call_proposed" && recorded.fingerprint) this.lastProposal = { callId: recorded.callId, fingerprint: recorded.fingerprint };
     this.state = { ...this.state, lastSeq: seq };
     this.audit({ kind: "event", seq, ts: recorded.ts, event: recorded });
     return recorded;
@@ -221,7 +224,10 @@ class GuardedRun implements Run {
     if (next.status === "paused" && action === "stop") next.status = "stopped";
     if (next.status === "running" && action === "pause") {
       next.status = "paused";
-      if (callId !== undefined) next.pausedOnCallId = callId;
+      if (callId !== undefined && this.lastProposal?.callId === callId) {
+        next.pausedOnCallId = callId;
+        next.pausedOnFingerprint = this.lastProposal.fingerprint;
+      }
     }
     this.state = next;
     this.audit({ kind: "decision", seq, ts: decision.ts, decision });
@@ -261,6 +267,15 @@ export function sanitizeAuditRecord(record: AuditRecord, redact: Redactor, maxCh
       return record.note === undefined ? record : { ...record, note: redact(record.note) };
     case "evaluation":
       return record.rationale === undefined ? record : { ...record, rationale: redact(record.rationale) };
+    case "decision": {
+      // Reason messages can carry caller text (e.g. stop({ reason })) and tool names.
+      const reasons = record.decision.reasons.map((r) => ({
+        ...r,
+        message: redact(r.message),
+        ...(r.details ? { details: redactDeep(r.details, redact) } : {}),
+      }));
+      return { ...record, decision: { ...record.decision, reasons } };
+    }
     default:
       return record;
   }

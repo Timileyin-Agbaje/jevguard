@@ -19,7 +19,7 @@ export function stableStringify(value: unknown, normalizeStrings = false): strin
     if (v instanceof RegExp) return { $regexp: v.source, flags: v.flags };
     if (Array.isArray(v)) return v.map((x) => (x === undefined ? null : walk(x)));
     if (v !== null && typeof v === "object") {
-      const out: Record<string, unknown> = {};
+      const out: Record<string, unknown> = Object.create(null) as Record<string, unknown>; // keeps a "__proto__" key as data
       for (const key of Object.keys(v).sort()) {
         const x = (v as Record<string, unknown>)[key];
         if (x !== undefined && typeof x !== "function") out[key] = walk(x);

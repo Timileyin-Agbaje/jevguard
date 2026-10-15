@@ -100,6 +100,14 @@ export const ConfigSchema = z
   })
   .superRefine((cfg, ctx) => {
     for (const key of ["repeatedCall", "repeatedError"] as const) {
+      const p = cfg.policies[key];
+      if (p.enabled && p.limit > p.window) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["policies", key, "limit"],
+          message: `limit (${p.limit}) must be <= window (${p.window}), or the policy can never fire`,
+        });
+      }
       if (cfg.policies[key].window > cfg.windowSize) {
         ctx.addIssue({
           code: "custom",

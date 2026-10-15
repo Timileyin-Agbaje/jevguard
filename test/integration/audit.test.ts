@@ -128,4 +128,15 @@ describe("audit log (integration)", () => {
     expect(wheres).toContain("audit flush");
     expect(onError.mock.calls.length).toBe(5); // 2 events (sync) + 2 decisions (async) + flush
   });
+
+  it("decision reasons are redacted in the audit log (e.g. a secret in stop({ reason }))", async () => {
+    const sink = new MemorySink();
+    const guard = createGuard(config, { sink, clock: manualClock(), ids: sequentialIds() });
+    const run = guard.startRun({ goal: "g" });
+    const d = run.stop({ by: "ops", reason: "leaked Bearer abcdefghijklmnop in logs" });
+    expect(d.reasons[0]?.message).toContain("abcdefghijklmnop"); // caller gets its own text back
+    const audited = sink.ofKind("decision")[0]!.decision;
+    expect(audited.reasons[0]?.message).toBe("leaked [REDACTED] in logs");
+    expect(audited.reasons[0]?.details).toEqual({ by: "ops" });
+  });
 });

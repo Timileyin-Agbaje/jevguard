@@ -34,7 +34,7 @@ export function redactDeep<T>(value: T, redact: Redactor): T {
   if (typeof value === "string") return redact(value) as T;
   if (Array.isArray(value)) return value.map((v) => redactDeep(v, redact)) as T;
   if (value !== null && typeof value === "object") {
-    const out: Record<string, unknown> = {};
+    const out: Record<string, unknown> = Object.create(null) as Record<string, unknown>; // keeps a "__proto__" key as data
     for (const [k, v] of Object.entries(value)) out[k] = redactDeep(v, redact);
     return out as T;
   }

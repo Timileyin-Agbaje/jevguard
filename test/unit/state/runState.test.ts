@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { GuardEvent } from "../../../src/schemas/events.js";
 import { applyEvent, enrichEvent, initialRunState, resumeState, type RunState } from "../../../src/state/runState.js";
 import { recentEntries } from "../../../src/state/window.js";
+import { callFingerprint } from "../../../src/state/fingerprint.js";
 
 function feed(events: GuardEvent[], windowSize = 20, state = initialRunState({ runId: "r", goal: "g", startedAt: 0 })): RunState {
   for (const e of events) {
@@ -71,7 +72,7 @@ describe("run state reducer", () => {
       { type: "tool_call_proposed", callId: "a", tool: "t", args: {} },
       { type: "tool_error", callId: "a", error: "x" },
     ]);
-    s = resumeState({ ...s, status: "paused", pausedOnCallId: "a" }, 3);
+    s = resumeState({ ...s, status: "paused", pausedOnCallId: "a", pausedOnFingerprint: callFingerprint("t", {}) }, 3);
     expect(s).toMatchObject({ status: "running", baselineSeq: 3, lastProgressStep: 1, consecutiveFailures: {}, approvedCallId: "a" });
     expect(s.pausedOnCallId).toBeUndefined();
 
@@ -80,5 +81,25 @@ describe("run state reducer", () => {
     const after = applyEvent(s, re, 20);
     expect(after.steps).toBe(1); // not double counted
     expect(after.approvedCallId).toBeUndefined();
+  });
+
+  it("tools named like Object.prototype members count failures correctly", () => {
+    const s = feed(
+      ["constructor", "toString", "__proto__"].flatMap((tool, i) => [
+        { type: "tool_call_proposed" as const, callId: `x${i}`, tool, args: {} },
+        { type: "tool_error" as const, callId: `x${i}`, error: "boom" },
+        { type: "tool_error" as const, callId: `x${i}`, error: "boom" },
+      ]),
+    );
+    expect(Object.entries(s.consecutiveFailures)).toEqual([
+      ["constructor", 2],
+      ["toString", 2],
+      ["__proto__", 2],
+    ]);
+  });
+
+  it("a callId like 'constructor' never resolves to an inherited value", () => {
+    const s = feed([{ type: "tool_error", callId: "constructor", error: "boom" }]);
+    expect(s.window[0]?.tool).toBe("<unknown>");
   });
 });

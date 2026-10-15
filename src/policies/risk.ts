@@ -3,7 +3,7 @@ import { ALLOW, type Policy } from "./types.js";
 import { block, warn } from "./result.js";
 
 export function toolRisk(tool: string, config: GuardConfig): ToolRisk {
-  return config.tools[tool]?.risk ?? config.defaultToolRisk;
+  return (Object.hasOwn(config.tools, tool) ? config.tools[tool]?.risk : undefined) ?? config.defaultToolRisk;
 }
 
 /** high → pause for approval; medium → ask the evaluator; low → nothing. */
