@@ -159,7 +159,6 @@ class GuardedRun implements Run {
     const seq = this.state.lastSeq + 1;
     this.state = { ...this.state, lastSeq: seq };
     if (this.state.status === "stopped" || this.state.status === "ended") return this.finalize(seq, "stop", [runStoppedReason()]);
-    this.inflight?.abort(new Error("run stopped"));
     return this.finalize(seq, "stop", [
       { code: "manual", source: "system", message: opts.reason ?? "stopped manually", details: { by: opts.by } },
     ]);
@@ -316,6 +315,7 @@ class GuardedRun implements Run {
         next.pausedOnFingerprint = this.lastProposal.fingerprint;
       }
     }
+    if (next.status === "stopped" && this.state.status !== "stopped") this.inflight?.abort(new Error("run stopped"));
     this.state = next;
     // Audit a JSON-safe copy too, so every sink can write it (invariant 6).
     this.audit({ kind: "decision", seq, ts: decision.ts, decision: copyDecision(decision) });

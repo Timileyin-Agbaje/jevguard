@@ -246,10 +246,11 @@ describe("evaluator integration", () => {
 
   it("a budget blown by record() during an evaluation turns the pending check into stop", async () => {
     const cfg = { ...everyStep, policies: { tokenBudget: { limit: 100 } } };
-    const { run } = setup([{ kind: "result", output: { verdict: "ok", confidence: 1 }, delayMs: 20 }], cfg);
+    const { run, evaluator } = setup([{ kind: "hang" }], cfg);
     const p = run.check(call("web_search", {}, "c1"));
+    await vi.waitFor(() => expect(evaluator.calls).toHaveLength(1));
     expect(run.record({ type: "agent_step", usage: { tokens: 1000 } }).action).toBe("stop");
-    const d = await p;
+    const d = await p; // resolves promptly: the hanging evaluation was aborted
     expect(d.action).toBe("stop");
     expect(codes(d)[0]).toBe("run_stopped");
   });
