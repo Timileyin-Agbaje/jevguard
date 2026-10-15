@@ -220,7 +220,7 @@ class GuardedRun implements Run {
       ...(evaluation ? { evaluation } : {}),
     };
     // History keeps its own copy: callers may mutate the decision they get back.
-    const next: RunState = { ...this.state, decisions: [...this.state.decisions, structuredClone(decision)] };
+    const next: RunState = { ...this.state, decisions: [...this.state.decisions, copyDecision(decision)] };
     if (next.status === "running" && action === "stop") next.status = "stopped";
     if (next.status === "paused" && action === "stop") next.status = "stopped";
     if (next.status === "running" && action === "pause") {
@@ -279,6 +279,24 @@ export function sanitizeAuditRecord(record: AuditRecord, redact: Redactor, maxCh
     }
     default:
       return record;
+  }
+}
+
+/**
+ * Deep copy for the run history. Custom policies may put non-cloneable values (functions,
+ * symbols) in reason details; those are kept in JSON form instead of making finalize() throw.
+ */
+export function copyDecision(decision: Decision): Decision {
+  try {
+    return structuredClone(decision);
+  } catch {
+    return {
+      ...structuredClone({ ...decision, reasons: [] }),
+      reasons: decision.reasons.map((r) => ({
+        ...r,
+        ...(r.details ? { details: JSON.parse(stableStringify(r.details)) as Record<string, unknown> } : {}),
+      })),
+    };
   }
 }
 

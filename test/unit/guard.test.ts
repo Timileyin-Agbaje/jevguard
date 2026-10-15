@@ -148,4 +148,20 @@ describe("guard API and run lifecycle", () => {
     d.reasons.push({ code: "manual", source: "system", message: "tampered" });
     expect(run.getDecisions()[0]).toMatchObject({ action: "allow", reasons: [] });
   });
+
+  it("a custom policy with non-cloneable reason details still pauses and is recorded", async () => {
+    const odd: Policy = {
+      id: "odd",
+      evaluate: () => ({
+        action: "pause",
+        reasons: [{ code: "manual", source: "policy", policyId: "odd", message: "odd", details: { fn: () => 1, sym: Symbol("s"), n: 1, big: 2n } }],
+        triggerEvaluation: false,
+      }),
+    };
+    const { run } = setup([odd]);
+    const d = await run.check(call("t"));
+    expect(d.action).toBe("pause");
+    expect(run.getState().status).toBe("paused");
+    expect(run.getDecisions()[0]?.reasons[0]?.details).toEqual({ sym: null, n: 1, big: "2" }); // functions dropped, as in the JSON audit record
+  });
 });
