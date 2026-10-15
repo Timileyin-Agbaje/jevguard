@@ -43,4 +43,21 @@ describe("redaction", () => {
     expect(truncateValue(obj, 10)).toMatchObject({ truncated: true, sha256: sha256(JSON.stringify(obj)) });
     expect(clip("abcdef", 3)).toBe("abc…[+3 chars]");
   });
+
+  it("redacts quoted secrets with spaces completely", () => {
+    expect(redact('error: password="alpha beta" rejected')).toBe("error: [REDACTED] rejected");
+    expect(redact("token='one two three'")).toBe("[REDACTED]");
+    expect(redact('{"password": "hunter 22", "user": "bob"}')).toBe('{"[REDACTED], "user": "bob"}');
+  });
+
+  it("redacts values under secret-named keys whatever they look like", () => {
+    expect(
+      redactDeep({ password: "hunter22", api_key: 12345, accessToken: { v: "x" }, nested: [{ Cookie: "a=b" }], tokens: 812, user: "bob" }, redact),
+    ).toEqual({ password: "[REDACTED]", api_key: "[REDACTED]", accessToken: "[REDACTED]", nested: [{ Cookie: "[REDACTED]" }], tokens: 812, user: "bob" });
+  });
+
+  it("secret keys are configurable", () => {
+    const r = createRedactor(DEFAULT_REDACTION_PATTERNS, "[X]", ["^ssn$"]);
+    expect(redactDeep({ ssn: "123", password: "kept-by-custom-list" }, r)).toEqual({ ssn: "[X]", password: "kept-by-custom-list" });
+  });
 });

@@ -50,4 +50,11 @@ describe("riskyTool policy", () => {
     const { run } = makeRun({ tools, defaultToolRisk: "high" });
     expect((await run.check(call("constructor"))).action).toBe("pause");
   });
+
+  it("approval is exact: arguments differing only in case or whitespace need new approval", async () => {
+    const { run } = makeRun({ tools });
+    expect((await run.check(call("shell", { cmd: "rm /tmp/Foo" }, "s1"))).action).toBe("pause");
+    run.resume({ by: "admin" });
+    expect((await run.check(call("shell", { cmd: "rm /tmp/foo" }, "s1"))).action).toBe("pause");
+  });
 });

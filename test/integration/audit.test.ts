@@ -139,4 +139,15 @@ describe("audit log (integration)", () => {
     expect(audited.reasons[0]?.message).toBe("leaked [REDACTED] in logs");
     expect(audited.reasons[0]?.details).toEqual({ by: "ops" });
   });
+
+  it("secret-named metadata fields and args are redacted in the audit log", async () => {
+    const sink = new MemorySink();
+    const guard = createGuard(config, { sink, clock: manualClock(), ids: sequentialIds() });
+    const run = guard.startRun({ goal: "g", metadata: { password: "hunter22", team: "research" } });
+    await run.check({ type: "tool_call_proposed", callId: "c1", tool: "web_search", args: { query: "x", api_key: "plainvalue" } });
+    run.record({ type: "tool_error", callId: "c1", error: 'login failed: password="alpha beta"' });
+    const text = JSON.stringify(sink.records);
+    for (const secret of ["hunter22", "plainvalue", "alpha", "beta"]) expect(text).not.toContain(secret);
+    expect(sink.ofKind("run_started")[0]?.metadata).toEqual({ password: "[REDACTED]", team: "research" });
+  });
 });

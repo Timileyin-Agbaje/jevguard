@@ -1,5 +1,6 @@
 import type { Decision } from "../schemas/decisions.js";
 import type { RecordedEvent } from "../schemas/events.js";
+import type { TruncatedValue } from "./redact.js";
 import type { EndStatus, RunStatus } from "../state/runState.js";
 
 export const AUDIT_SCHEMA_VERSION = 1;
@@ -19,10 +20,17 @@ export interface RunStartedRecord extends AuditBase {
   questionsVersion: string;
 }
 
+/** A recorded event as written to the audit log: large payload fields may be TruncatedValues. */
+export type AuditedEvent = RecordedEvent extends infer E
+  ? E extends unknown
+    ? { [K in keyof E]: K extends "args" | "output" | "error" | "summary" ? E[K] | TruncatedValue : E[K] }
+    : never
+  : never;
+
 export interface EventRecord extends AuditBase {
   kind: "event";
   /** Redacted. Large `args`/`output`/`error`/`summary` values are replaced by a TruncatedValue (preview + sha256). */
-  event: RecordedEvent;
+  event: AuditedEvent;
 }
 
 export interface EvaluationRecord extends AuditBase {

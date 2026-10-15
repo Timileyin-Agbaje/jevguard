@@ -1,6 +1,6 @@
 import { JsonlFileSink } from "./audit/jsonl.js";
 import { createRedactor, redactDeep, truncateValue, type Redactor } from "./audit/redact.js";
-import { AUDIT_SCHEMA_VERSION, type AuditRecord, type AuditSink } from "./audit/sink.js";
+import { AUDIT_SCHEMA_VERSION, type AuditedEvent, type AuditRecord, type AuditSink } from "./audit/sink.js";
 import { combinePolicyResults, mostSevere } from "./decision/combine.js";
 import { QUESTIONS_VERSION } from "./evaluator/questions.js";
 import { defaultPolicies } from "./policies/index.js";
@@ -8,7 +8,7 @@ import type { Policy, PolicyResult } from "./policies/types.js";
 import { parseConfig, type ErrorHandler, type GuardConfig, type GuardConfigInput } from "./schemas/config.js";
 import type { Action, Decision, DecisionEvaluation, Reason } from "./schemas/decisions.js";
 import { CheckEventSchema, RecordEventSchema, type CheckEventInput, type GuardEvent, type RecordEventInput } from "./schemas/events.js";
-import { sha256, stableStringify } from "./state/fingerprint.js";
+import { exactCallKey, sha256, stableStringify } from "./state/fingerprint.js";
 import { applyEvent, enrichEvent, initialRunState, resumeState, type EndStatus, type RunState } from "./state/runState.js";
 import { systemClock, type Clock } from "./util/clock.js";
 import { randomIds, type IdGenerator } from "./util/ids.js";
@@ -62,7 +62,7 @@ export function createGuard(input: GuardConfigInput = {}, deps: GuardDeps = {}):
     config,
     configHash: configHash(config),
     sink: deps.sink ?? new JsonlFileSink({ dir: config.audit.dir }),
-    redact: createRedactor(config.redaction.patterns, config.redaction.replacement),
+    redact: createRedactor(config.redaction.patterns, config.redaction.replacement, config.redaction.secretKeys),
     clock: deps.clock ?? systemClock,
     policies: deps.policies ?? defaultPolicies,
     onError: config.onError ?? defaultOnError,
@@ -203,7 +203,7 @@ class GuardedRun implements Run {
   private ingest(event: GuardEvent) {
     const seq = this.state.lastSeq + 1;
     const recorded = enrichEvent(this.state, event, seq, this.ctx.clock.now());
-    if (recorded.type === "tool_call_proposed" && recorded.fingerprint) this.lastProposal = { callId: recorded.callId, fingerprint: recorded.fingerprint };
+    if (recorded.type === "tool_call_proposed") this.lastProposal = { callId: recorded.callId, fingerprint: exactCallKey(recorded.tool, recorded.args) };
     this.state = { ...this.state, lastSeq: seq };
     this.audit({ kind: "event", seq, ts: recorded.ts, event: recorded });
     return recorded;
@@ -259,7 +259,7 @@ export function sanitizeAuditRecord(record: AuditRecord, redact: Redactor, maxCh
       for (const key of ["args", "output", "error", "summary"]) {
         if (key in event) event[key] = truncateValue(event[key], maxChars);
       }
-      return { ...record, event: event as unknown as typeof record.event };
+      return { ...record, event: event as AuditedEvent };
     }
     case "run_started":
       return { ...record, goal: redact(record.goal), metadata: redactDeep(record.metadata, redact) };

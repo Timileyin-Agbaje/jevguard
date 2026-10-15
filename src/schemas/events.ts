@@ -10,7 +10,11 @@ export const ToolCallProposedSchema = z.object({
   type: z.literal("tool_call_proposed"),
   callId: z.string().min(1),
   tool: z.string().min(1),
-  args: z.record(z.string(), z.unknown()).default(() => ({})),
+  /** JSON values only (no bigint, functions, Dates...), so events can always be audited. */
+  args: z
+    .record(z.string(), z.unknown())
+    .refine((a) => Object.values(a).every((v) => v === undefined || z.json().safeParse(v).success), { message: "args must contain only JSON values" })
+    .default(() => ({})),
 });
 
 export const ToolResultSchema = z.object({

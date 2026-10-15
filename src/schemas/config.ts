@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DEFAULT_REDACTION_PATTERNS, DEFAULT_REDACTION_REPLACEMENT } from "../audit/redact.js";
+import { DEFAULT_REDACTION_PATTERNS, DEFAULT_REDACTION_REPLACEMENT, DEFAULT_SECRET_KEYS } from "../audit/redact.js";
 import { MIN_CONFIDENCE } from "../evaluator/questions.js";
 import { ActionSchema } from "./decisions.js";
 
@@ -94,6 +94,8 @@ export const ConfigSchema = z
       .object({
         patterns: z.array(PatternSchema).default(() => [...DEFAULT_REDACTION_PATTERNS]),
         replacement: z.string().default(DEFAULT_REDACTION_REPLACEMENT),
+        /** Object keys (whole-key match) whose values are always redacted. */
+        secretKeys: z.array(PatternSchema).default(() => [...DEFAULT_SECRET_KEYS]),
       })
       .prefault({}),
     onError: z.custom<ErrorHandler>((v) => typeof v === "function", { message: "onError must be a function" }).optional(),

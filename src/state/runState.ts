@@ -1,6 +1,6 @@
 import type { Decision } from "../schemas/decisions.js";
 import type { GuardEvent, RecordedEvent } from "../schemas/events.js";
-import { callFingerprint, errorFingerprint, resultFingerprint } from "./fingerprint.js";
+import { callFingerprint, errorFingerprint, exactCallKey, resultFingerprint } from "./fingerprint.js";
 import { fingerprintCounts, pushWindow } from "./window.js";
 
 export type RunStatus = "running" | "paused" | "stopped" | "ended";
@@ -41,7 +41,7 @@ export interface RunState {
   baselineSeq: number;
   /** The call a pause decision was made on, if any. */
   pausedOnCallId?: string;
-  /** Call fingerprint (tool + args) of that paused call. */
+  /** Exact key (tool + args, not normalized; see exactCallKey) of that paused call. */
   pausedOnFingerprint?: string;
   /** Set by resume(); the next check() with this callId AND the same tool + args is treated as approved. */
   approvedCallId?: string;
@@ -89,8 +89,8 @@ export function enrichEvent(state: RunState, event: GuardEvent, seq: number, ts:
   switch (event.type) {
     case "tool_call_proposed": {
       const fingerprint = callFingerprint(event.tool, event.args);
-      // Approval covers exactly the call a human saw: same callId, same tool and arguments.
-      const approved = state.approvedCallId === event.callId && state.approvedFingerprint === fingerprint;
+      // Approval covers exactly the call a human saw: same callId, same tool and byte-identical arguments.
+      const approved = state.approvedCallId === event.callId && state.approvedFingerprint === exactCallKey(event.tool, event.args);
       return { ...event, ...base, tool: event.tool, fingerprint, ...(approved ? { approved: true } : {}) };
     }
     case "tool_result":

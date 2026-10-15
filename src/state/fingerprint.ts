@@ -42,6 +42,14 @@ export function callFingerprint(tool: string, args: unknown): string {
   return sha256(`${tool}\u0000${canonicalJSON(args)}`);
 }
 
+/**
+ * Exact identity of a call (no normalization), used for human approval: approving
+ * `rm /tmp/Foo` must not also approve `rm /tmp/foo`.
+ */
+export function exactCallKey(tool: string, args: unknown): string {
+  return sha256(`${tool}\u0000${stableStringify(args)}`);
+}
+
 const UUID_RE = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 const HEX_ID_RE = /\b(?:0x[0-9a-f]+|(?=[0-9a-f]*\d)[0-9a-f]{8,})\b/gi;
 const DIGITS_RE = /\d+/g;

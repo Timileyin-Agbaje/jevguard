@@ -38,4 +38,9 @@ describe("event schemas", () => {
     expect(CheckEventSchema.safeParse({ type: "agent_step" }).success).toBe(false);
     expect(RecordEventSchema.safeParse({ type: "tool_call_proposed", callId: "c", tool: "t" }).success).toBe(false);
   });
+
+  it("rejects tool args that are not JSON (e.g. bigint), so every event can be audited", () => {
+    expect(EventSchema.safeParse({ type: "tool_call_proposed", callId: "c", tool: "t", args: { amount: 10n } }).success).toBe(false);
+    expect(EventSchema.safeParse({ type: "tool_call_proposed", callId: "c", tool: "t", args: { a: 1, b: undefined } }).success).toBe(true);
+  });
 });
