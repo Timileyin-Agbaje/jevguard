@@ -274,7 +274,7 @@ Fake, deterministic tools and no network access. A mock Jev answers `ok` unless 
 - Single process, in-memory state. A crash loses run state; the audit log survives.
 - Fingerprinting catches exact and near-exact repetition only. Paraphrased loops rely on Jev.
 - Progress detection is a heuristic based on new result fingerprints.
-- Jev's judgments are probabilistic: a signal, not a guarantee. Thresholds are calibrated on a small fixture set (28 transcripts, questions v1.1.0: 0 false positives and 0 false negatives at `MIN_CONFIDENCE = 0.6`) and may need tuning per agent. Some legitimate patterns score close to the line; for example, re-reading a page for a second fact scored `ok` at only 0.57 against `off_goal` at 0.43.
+- Jev's judgments are probabilistic: a signal, not a guarantee. Thresholds are calibrated on a small fixture set and may need tuning per agent. Questions v1.1.0 at `MIN_CONFIDENCE = 0.6`: on the 24 non-borderline transcripts, 0 false positives and 0 false negatives; the 4 borderline transcripts are scored separately (all 4 acceptable, though `borderline-retry-after-429` would pause as `loop` at 0.70). Some legitimate patterns score close to the line; for example, re-reading a page for a second fact scored `ok` at only 0.57 against `off_goal` at 0.43.
 - The guard only sees what the agent reports. An agent that skips `check()` is not governed.
 - `record()` is synchronous and is not queued behind an in-flight `check()`. Its effects (for example a blown budget) are applied immediately and seen by the pending check when Jev returns.
 - `pause` has no built-in notification or approval flow. Resuming is up to the integrator (`run.resume()`).
