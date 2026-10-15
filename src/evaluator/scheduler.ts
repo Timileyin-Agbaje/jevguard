@@ -23,6 +23,9 @@ export function scheduleEvaluation(state: Readonly<RunState>, event: RecordedEve
   // The evaluator can only escalate up to maxAction; if the policy is already there, asking is pointless.
   if (SEVERITY[policy.action] >= SEVERITY[cfg.maxAction]) return { evaluate: false, skipReason: "cannot_escalate" };
   if (state.evaluationCount >= cfg.maxEvaluationsPerRun) return { evaluate: false, skipReason: "max_evaluations" };
+  // A human already approved exactly this call after a pause; asking Jev again could re-pause it forever.
+  // Deterministic policies (hard limits) still apply.
+  if (event.approved) return { evaluate: false, skipReason: "approved" };
 
   const riskTriggered = !event.approved && toolRisk(event.tool, config) !== "low";
   if (riskTriggered) return { evaluate: true, trigger: "risky_tool", riskTriggered };

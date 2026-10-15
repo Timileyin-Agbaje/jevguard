@@ -187,4 +187,18 @@ describe("guard API and run lifecycle", () => {
     expect(memory.records.filter((r) => r.kind === "decision")).toHaveLength(1);
     expect(lines.filter((l) => l.includes('"kind":"decision"'))).toHaveLength(1);
   });
+
+  it("a custom policy with circular reason details still enforces its pause", async () => {
+    const details: Record<string, unknown> = { n: 1 };
+    details.self = details;
+    const circular: Policy = {
+      id: "circular",
+      evaluate: () => ({ action: "pause", reasons: [{ code: "manual", source: "policy", message: "c", details }], triggerEvaluation: false }),
+    };
+    const { run, sink } = setup([circular]);
+    expect((await run.check(call("t"))).action).toBe("pause");
+    expect(run.getState().status).toBe("paused");
+    expect(run.getDecisions()[0]?.reasons[0]?.details).toEqual({ n: 1, self: "[Circular]" });
+    expect(sink.records.filter((r) => r.kind === "decision")).toHaveLength(1);
+  });
 });

@@ -10,21 +10,29 @@ export function normalizeText(text: string): string {
 }
 
 /**
- * Deterministic JSON: object keys sorted, `undefined` members dropped.
- * With `normalizeStrings`, string values are trimmed, whitespace-collapsed and lowercased.
+ * Deterministic JSON: object keys sorted, `undefined` members dropped, circular references
+ * replaced by "[Circular]" (so it never throws). With `normalizeStrings`, string values are
+ * trimmed, whitespace-collapsed and lowercased.
  */
 export function stableStringify(value: unknown, normalizeStrings = false): string {
+  const ancestors = new Set<object>();
   const walk = (v: unknown): unknown => {
     if (typeof v === "string") return normalizeStrings ? normalizeText(v) : v;
     if (v instanceof RegExp) return { $regexp: v.source, flags: v.flags };
-    if (Array.isArray(v)) return v.map((x) => (x === undefined ? null : walk(x)));
     if (v !== null && typeof v === "object") {
-      const out: Record<string, unknown> = Object.create(null) as Record<string, unknown>; // keeps a "__proto__" key as data
-      for (const key of Object.keys(v).sort()) {
-        const x = (v as Record<string, unknown>)[key];
-        if (x !== undefined && typeof x !== "function") out[key] = walk(x);
+      if (ancestors.has(v)) return "[Circular]";
+      ancestors.add(v);
+      try {
+        if (Array.isArray(v)) return v.map((x) => (x === undefined ? null : walk(x)));
+        const out: Record<string, unknown> = Object.create(null) as Record<string, unknown>; // keeps a "__proto__" key as data
+        for (const key of Object.keys(v).sort()) {
+          const x = (v as Record<string, unknown>)[key];
+          if (x !== undefined && typeof x !== "function") out[key] = walk(x);
+        }
+        return out;
+      } finally {
+        ancestors.delete(v);
       }
-      return out;
     }
     if (typeof v === "bigint") return v.toString();
     if (typeof v === "function" || typeof v === "symbol") return null;

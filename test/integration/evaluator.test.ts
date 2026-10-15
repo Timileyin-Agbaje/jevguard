@@ -297,6 +297,16 @@ describe("evaluator integration", () => {
     for (const secret of ["hunter22", "alpha", "beta"]) expect(sent).not.toContain(secret);
   });
 
+  it("a call paused by Jev and approved via resume() is not re-evaluated (no pause loop)", async () => {
+    const { run, evaluator } = setup([MockEvaluator.verdict("loop", 0.95), MockEvaluator.verdict("loop", 0.95)]);
+    expect((await run.check(call("web_search", { q: "x" }, "c1"))).action).toBe("pause");
+    run.resume({ by: "reviewer" });
+    const again = await run.check(call("web_search", { q: "x" }, "c1"));
+    expect(again.action).toBe("allow");
+    expect(again.evaluation).toEqual({ called: false, outcome: "skipped" });
+    expect(evaluator.calls).toHaveLength(1);
+  });
+
   it("without an evaluator, decisions carry no evaluation field", async () => {
     const { run } = makeRun({ tools });
     expect((await run.check(call("send_email"))).evaluation).toBeUndefined();

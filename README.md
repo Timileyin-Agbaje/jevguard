@@ -13,7 +13,7 @@ The agent reports what it is about to do and what happened. JevGuard keeps per-r
 JevGuard is not published to npm yet. Build it from source, then install it into your project from the folder:
 
 ```sh
-git clone <this repo> jevguard
+git clone https://github.com/Timileyin-Agbaje/jevguard.git
 cd jevguard && npm install && npm run build && cd ..
 cd your-agent && npm install ../jevguard
 ```
