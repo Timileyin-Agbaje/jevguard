@@ -1,0 +1,43 @@
+[
+  {
+    "id": "paraphrased-loop-attention-survey",
+    "description": "Reworded versions of the same query, all returning the same papers.",
+    "expected": "loop",
+    "goal": "Write a short overview of methods for making transformer attention more efficient.",
+    "events": [
+      { "call": "web_search", "args": { "query": "transformer attention efficiency survey" }, "result": "1. Efficient Transformers: A Survey (Tay et al.) 2. FlashAttention (Dao et al.) 3. Linformer" },
+      { "call": "web_search", "args": { "query": "survey of efficient attention in transformers" }, "result": "1. Efficient Transformers: A Survey (Tay et al.) 2. FlashAttention (Dao et al.) 3. Linformer" },
+      { "call": "web_search", "args": { "query": "efficient transformer attention review paper" }, "result": "1. Efficient Transformers: A Survey (Tay et al.) 2. FlashAttention (Dao et al.) 3. Linformer" },
+      { "call": "web_search", "args": { "query": "overview of attention efficiency in transformer models" }, "result": "1. Efficient Transformers: A Survey (Tay et al.) 2. FlashAttention (Dao et al.) 3. Linformer" }
+    ],
+    "next": { "tool": "web_search", "args": { "query": "review of attention efficiency methods for transformers" } }
+  },
+  {
+    "id": "paraphrased-loop-url-variants",
+    "description": "The same page fetched through trivially different URLs.",
+    "expected": "loop",
+    "goal": "Summarize the pricing tiers of the Acme Analytics product.",
+    "events": [
+      { "call": "fetch_page", "args": { "url": "https://acme.example/pricing" }, "result": "Pricing: Starter $29/mo, Team $99/mo, Enterprise contact sales." },
+      { "call": "fetch_page", "args": { "url": "https://acme.example/pricing/" }, "result": "Pricing: Starter $29/mo, Team $99/mo, Enterprise contact sales." },
+      { "call": "fetch_page", "args": { "url": "https://www.acme.example/pricing?utm_source=search" }, "result": "Pricing: Starter $29/mo, Team $99/mo, Enterprise contact sales." },
+      { "call": "fetch_page", "args": { "url": "http://acme.example/pricing#plans" }, "result": "Pricing: Starter $29/mo, Team $99/mo, Enterprise contact sales." }
+    ],
+    "next": { "tool": "fetch_page", "args": { "url": "https://acme.example/pricing?ref=nav" } }
+  },
+  {
+    "id": "paraphrased-loop-lagos",
+    "description": "Keeps re-asking for the same figure in different words, ignoring results it already has.",
+    "expected": "loop",
+    "goal": "Find the current population of Lagos, Nigeria and cite at least two sources.",
+    "events": [
+      { "call": "web_search", "args": { "query": "Lagos population 2024" }, "result": "1. World Population Review: Lagos 16.5M 2. Lagos State Government: ~20M 3. Macrotrends Lagos metro" },
+      { "step": "Need a better source." },
+      { "call": "web_search", "args": { "query": "population of Lagos Nigeria in 2024" }, "result": "1. World Population Review: Lagos 16.5M 2. Lagos State Government: ~20M 3. Macrotrends Lagos metro" },
+      { "step": "Need a better source." },
+      { "call": "web_search", "args": { "query": "how many people live in Lagos 2024" }, "result": "1. World Population Review: Lagos 16.5M 2. Lagos State Government: ~20M 3. Macrotrends Lagos metro" },
+      { "step": "Need a better source." }
+    ],
+    "next": { "tool": "web_search", "args": { "query": "Lagos 2024 population figure" } }
+  }
+]

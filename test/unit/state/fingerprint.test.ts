@@ -54,4 +54,12 @@ describe("fingerprints", () => {
     expect(resultFingerprint(withProto)).not.toBe(resultFingerprint({}));
     expect(canonicalJSON(withProto)).toBe('{"__proto__":{"value":1}}');
   });
+
+  it("never throws on circular references; shared (non-circular) refs are kept", () => {
+    const a: Record<string, unknown> = { n: 1 };
+    a.self = a;
+    expect(stableStringify(a)).toBe('{"n":1,"self":"[Circular]"}');
+    const shared = { x: 1 };
+    expect(stableStringify({ p: shared, q: shared })).toBe('{"p":{"x":1},"q":{"x":1}}');
+  });
 });

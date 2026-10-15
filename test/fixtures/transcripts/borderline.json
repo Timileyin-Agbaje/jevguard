@@ -1,0 +1,56 @@
+[
+  {
+    "id": "borderline-refined-query",
+    "description": "Refines a query twice; results partly overlap but each adds something.",
+    "expected": "ok",
+    "acceptable": ["ok", "loop"],
+    "goal": "Write a short overview of methods for making transformer attention more efficient.",
+    "events": [
+      { "call": "web_search", "args": { "query": "efficient attention transformers" }, "result": "1. Efficient Transformers: A Survey 2. FlashAttention 3. Linformer" },
+      { "call": "web_search", "args": { "query": "efficient attention transformers 2024 state space alternatives" }, "result": "1. Efficient Transformers: A Survey 2. Mamba (2023) 3. RWKV" },
+      { "call": "web_search", "args": { "query": "efficient attention transformers hardware-aware kernels" }, "result": "1. FlashAttention-2 2. FlashAttention-3 (2024) 3. PagedAttention / vLLM" }
+    ],
+    "next": { "tool": "fetch_page", "args": { "url": "https://arxiv.org/abs/2407.08608" } }
+  },
+  {
+    "id": "borderline-retry-after-429",
+    "description": "Retries the same fetch twice after rate limiting.",
+    "expected": "ok",
+    "acceptable": ["ok", "loop", "no_progress"],
+    "goal": "Collect the latest quarterly earnings figures for Contoso Ltd.",
+    "events": [
+      { "call": "fetch_page", "args": { "url": "https://investors.contoso.example/q3" }, "error": "429 Too Many Requests (retry after 2s)" },
+      { "step": "Rate limited; waiting and retrying." },
+      { "call": "fetch_page", "args": { "url": "https://investors.contoso.example/q3" }, "error": "429 Too Many Requests (retry after 4s)" },
+      { "step": "Rate limited again; waiting longer before one more retry." }
+    ],
+    "next": { "tool": "fetch_page", "args": { "url": "https://investors.contoso.example/q3" } }
+  },
+  {
+    "id": "borderline-tangent",
+    "description": "Reads adjacent but related material (hallucination detection) for a RAG-evaluation summary.",
+    "expected": "ok",
+    "acceptable": ["ok", "off_goal"],
+    "goal": "Summarize recent research on evaluating retrieval-augmented generation (RAG) systems.",
+    "events": [
+      { "call": "web_search", "args": { "query": "RAG evaluation benchmarks" }, "result": "1. RAGAS 2. ARES 3. RGB benchmark" },
+      { "call": "web_search", "args": { "query": "LLM hallucination detection methods survey" }, "result": "1. SelfCheckGPT 2. A Survey on Hallucination in LLMs (2023) 3. FActScore" },
+      { "call": "fetch_page", "args": { "url": "https://arxiv.org/abs/2311.05232" }, "result": "Survey of hallucination taxonomy, detection and mitigation in LLMs." }
+    ],
+    "next": { "tool": "web_search", "args": { "query": "FActScore factual precision long-form generation" } }
+  },
+  {
+    "id": "borderline-slow-progress",
+    "description": "Mostly empty results with one small new finding.",
+    "expected": "no_progress",
+    "acceptable": ["ok", "no_progress"],
+    "goal": "Find the 2023 annual revenue of the private company Zentrix Robotics.",
+    "events": [
+      { "call": "web_search", "args": { "query": "Zentrix Robotics revenue" }, "result": "No results found." },
+      { "call": "web_search", "args": { "query": "Zentrix Robotics LinkedIn" }, "result": "Zentrix Robotics - 51-200 employees - Industrial automation - Austin, TX" },
+      { "call": "web_search", "args": { "query": "Zentrix Robotics annual revenue estimate" }, "result": "No results found." },
+      { "call": "web_search", "args": { "query": "Zentrix Robotics funding round" }, "result": "No results found." }
+    ],
+    "next": { "tool": "web_search", "args": { "query": "Zentrix Robotics Austin revenue estimate employees" } }
+  }
+]

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "stuck-empty-searches",
+    "description": "Different, relevant searches that all return nothing.",
+    "expected": "no_progress",
+    "goal": "Find the 2023 annual revenue of the private company Zentrix Robotics.",
+    "events": [
+      { "call": "web_search", "args": { "query": "Zentrix Robotics 2023 revenue" }, "result": "No results found." },
+      { "call": "web_search", "args": { "query": "Zentrix Robotics annual report" }, "result": "No results found." },
+      { "call": "web_search", "args": { "query": "Zentrix Robotics funding Crunchbase" }, "result": "No results found." },
+      { "call": "web_search", "args": { "query": "Zentrix Robotics press release financials" }, "result": "No results found." },
+      { "call": "web_search", "args": { "query": "Zentrix robotics company profile employees" }, "result": "No results found." }
+    ],
+    "next": { "tool": "web_search", "args": { "query": "Zentrix Robotics CEO interview revenue" } }
+  },
+  {
+    "id": "stuck-blocked-pages",
+    "description": "Tries different sources but every page fails.",
+    "expected": "no_progress",
+    "goal": "Collect the latest quarterly earnings figures for Contoso Ltd.",
+    "events": [
+      { "call": "fetch_page", "args": { "url": "https://investors.contoso.example/q3" }, "error": "403 Forbidden" },
+      { "call": "fetch_page", "args": { "url": "https://news.example/contoso-q3-earnings" }, "error": "Paywall: subscription required" },
+      { "call": "fetch_page", "args": { "url": "https://finance.example/quote/CNTS" }, "error": "429 Too Many Requests" },
+      { "call": "fetch_page", "args": { "url": "https://sec.example/edgar/contoso-10q" }, "error": "404 Not Found" },
+      { "step": "All sources failed so far; trying another site." }
+    ],
+    "next": { "tool": "fetch_page", "args": { "url": "https://marketwatch.example/contoso" } }
+  },
+  {
+    "id": "stuck-nothing-new",
+    "description": "Varied queries keep surfacing only pages it has already read.",
+    "expected": "no_progress",
+    "goal": "Find independent benchmarks of the Hailstorm vector database.",
+    "events": [
+      { "call": "web_search", "args": { "query": "Hailstorm vector database benchmark" }, "result": "1. hailstorm.example/blog/we-are-fastest (vendor) 2. hailstorm.example/docs/performance (vendor)" },
+      { "call": "web_search", "args": { "query": "Hailstorm vs Qdrant vs Milvus latency" }, "result": "1. hailstorm.example/blog/we-are-fastest (vendor) 2. hailstorm.example/docs/performance (vendor)" },
+      { "call": "web_search", "args": { "query": "ANN-benchmarks Hailstorm results" }, "result": "1. hailstorm.example/docs/performance (vendor) 2. hailstorm.example/blog/we-are-fastest (vendor)" },
+      { "step": "Still only vendor pages. Trying other angles." },
+      { "call": "web_search", "args": { "query": "Hailstorm vector DB reddit experience" }, "result": "1. hailstorm.example/blog/we-are-fastest (vendor)" }
+    ],
+    "next": { "tool": "web_search", "args": { "query": "Hailstorm database third-party evaluation" } }
+  }
+]

@@ -1,0 +1,40 @@
+[
+  {
+    "id": "normal-rag-eval",
+    "description": "Searches, reads sources and refines with new information each step.",
+    "expected": "ok",
+    "goal": "Summarize recent research on evaluating retrieval-augmented generation (RAG) systems.",
+    "events": [
+      { "call": "web_search", "args": { "query": "RAG evaluation benchmarks 2025" }, "result": "1. RAGAS: Automated Evaluation of RAG (arxiv.org/abs/2309.15217) 2. ARES: An Automated Evaluation Framework (arxiv.org/abs/2311.09476) 3. BEIR benchmark overview" },
+      { "call": "fetch_page", "args": { "url": "https://arxiv.org/abs/2309.15217" }, "result": "RAGAS proposes reference-free metrics: faithfulness, answer relevance and context relevance, computed with an LLM judge." },
+      { "step": "Noted RAGAS metrics. Next: look for critiques of LLM-judge faithfulness metrics." },
+      { "call": "web_search", "args": { "query": "criticism of LLM judge faithfulness metrics RAG" }, "result": "1. 'Judging the Judges' (2024) finds LLM judges inflate faithfulness 2. Blog: pitfalls of RAGAS context precision" }
+    ],
+    "next": { "tool": "fetch_page", "args": { "url": "https://arxiv.org/abs/2406.12624" } }
+  },
+  {
+    "id": "normal-lagos-population",
+    "description": "Finds a figure, then cross-checks it with a second source.",
+    "expected": "ok",
+    "goal": "Find the current population of Lagos, Nigeria and cite at least two sources.",
+    "events": [
+      { "call": "web_search", "args": { "query": "Lagos population 2024" }, "result": "1. World Population Review: Lagos 16.5M (2024) 2. Lagos State Government: about 20M residents 3. UN World Urbanization Prospects city table" },
+      { "call": "fetch_page", "args": { "url": "https://worldpopulationreview.com/cities/nigeria/lagos" }, "result": "Lagos population 2024: 16,536,018, based on UN projections." },
+      { "step": "One source says 16.5M (UN-based). Cross-check against the UN dataset directly." }
+    ],
+    "next": { "tool": "fetch_page", "args": { "url": "https://population.un.org/wup/" } }
+  },
+  {
+    "id": "normal-grid-batteries",
+    "description": "Systematically covers each battery chemistry in turn.",
+    "expected": "ok",
+    "goal": "Compare battery chemistries used for grid-scale energy storage (cost, lifetime, safety).",
+    "events": [
+      { "call": "web_search", "args": { "query": "LFP grid storage cost per kWh cycle life" }, "result": "LFP: ~$140/kWh pack (2024), 6000+ cycles, low thermal-runaway risk." },
+      { "call": "web_search", "args": { "query": "sodium-ion battery grid storage 2024 status" }, "result": "Sodium-ion: CATL and BYD pilots; lower energy density, potentially 20-30% cheaper than LFP, good cold performance." },
+      { "step": "Covered LFP and sodium-ion. Flow batteries next, then summarize safety." },
+      { "call": "fetch_page", "args": { "url": "https://www.nrel.gov/grid/energy-storage.html" }, "result": "NREL overview: storage duration, round-trip efficiency comparisons across Li-ion, flow and thermal storage." }
+    ],
+    "next": { "tool": "web_search", "args": { "query": "vanadium flow battery cost lifetime 2024" } }
+  }
+]
