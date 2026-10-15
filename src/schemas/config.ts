@@ -44,6 +44,8 @@ export const EvaluatorConfigSchema = z.object({
   timeoutMs: positiveInt.default(10_000),
   /** Retries on network errors and HTTP 5xx/429. */
   maxRetries: z.number().int().min(0).max(3).default(1),
+  /** Pause before a retry. The whole evaluation, retries included, must finish within `timeoutMs`. */
+  retryDelayMs: nonNegativeInt.default(250),
   /** Escalation used when an evaluation triggered by a risky tool fails. */
   onFailure: ActionSchema.default("pause"),
   /** Cap on any evaluator-derived action. */
