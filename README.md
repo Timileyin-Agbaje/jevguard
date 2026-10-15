@@ -147,7 +147,7 @@ Fingerprints:
 - **Error:** sha256 of the message with UUIDs, hex IDs and digit runs replaced by placeholders, so `429 (request 7f3a…)` and `429 (request 9e1b…)` match.
 - **Result:** sha256 of the normalized output. A result counts as progress if its fingerprint hasn't been seen before in this run.
 
-Every policy can be turned off with `enabled: false`. The budgets are off until a limit is set.
+All policies except `tokenBudget` and `costBudget` can be turned off with `enabled: false`. Those two budgets have no `enabled` flag: they are off until `limit` (tokens) or `limitUsd` (cost) is set, and you turn them off by leaving it unset.
 
 ## Configuration reference
 
