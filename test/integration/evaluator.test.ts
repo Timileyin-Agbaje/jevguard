@@ -287,6 +287,15 @@ describe("evaluator integration", () => {
     expect(sent).not.toContain("hunter22");
   });
 
+  it("secrets inside JSON returned as a string never reach the evaluator", async () => {
+    const { run, evaluator } = setup([MockEvaluator.verdict("ok", 1), MockEvaluator.verdict("ok", 1)]);
+    await run.check(call("web_search", { q: 1 }, "c1"));
+    run.record(result("c1", '{"client_secret":"hunter22","db_password":"alpha beta","items":[1,2]}'));
+    await run.check(call("web_search", { q: 2 }, "c2"));
+    const sent = JSON.stringify(evaluator.calls);
+    for (const secret of ["hunter22", "alpha", "beta"]) expect(sent).not.toContain(secret);
+  });
+
   it("without an evaluator, decisions carry no evaluation field", async () => {
     const { run } = makeRun({ tools });
     expect((await run.check(call("send_email"))).evaluation).toBeUndefined();
