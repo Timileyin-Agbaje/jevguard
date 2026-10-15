@@ -103,6 +103,15 @@ describe("runEvaluation", () => {
     expect(mock.calls).toHaveLength(1);
   });
 
+  it("a cancelled MockEvaluator delay leaves no timer behind", async () => {
+    vi.useFakeTimers();
+    const mock = new MockEvaluator([{ kind: "result", output: { verdict: "ok", confidence: 1 }, delayMs: 60_000 }]);
+    const p = runEvaluation(mock, input, cfg({ timeoutMs: 100 }), clock);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(await p).toMatchObject({ outcome: "timeout" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("does not retry other 4xx or unknown errors", async () => {
     for (const err of [new EvaluatorRequestError("bad", { status: 422 }), { status: 401 }, new Error("weird")]) {
       const mock = new MockEvaluator([{ kind: "throw", error: err }, MockEvaluator.verdict("ok", 1)]);

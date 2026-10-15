@@ -38,7 +38,11 @@ export class MockEvaluator implements BehaviorEvaluator {
     this.calls.push(structuredClone(input));
     const step = this.queue.shift() ?? this.fallback;
     return new Promise((resolve, reject) => {
-      const onAbort = () => reject(signal.reason);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const onAbort = () => {
+        clearTimeout(timer); // a cancelled delay must not keep Node alive
+        reject(signal.reason);
+      };
       if (signal.aborted) return onAbort();
       signal.addEventListener("abort", onAbort, { once: true });
       if (step.kind === "hang") return;
@@ -47,7 +51,7 @@ export class MockEvaluator implements BehaviorEvaluator {
         if (step.kind === "result") resolve(step.output);
         else reject(step.error);
       };
-      if (step.delayMs) setTimeout(settle, step.delayMs);
+      if (step.delayMs) timer = setTimeout(settle, step.delayMs);
       else queueMicrotask(settle);
     });
   }
