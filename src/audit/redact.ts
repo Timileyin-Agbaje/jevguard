@@ -9,7 +9,9 @@ export const DEFAULT_REDACTION_PATTERNS: readonly RegExp[] = [
   /\bAIza[0-9A-Za-z_-]{35}\b/g, // Google API keys
   /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g, // JWTs
   /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi, // bearer tokens
-  /\b(?:api[_-]?key|(?:access|auth|refresh)[_-]?token|token|secret|password|passwd)\b["']?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s"',;&)\]}]+)/gi, // key=value secrets, quoted values whole
+  // key=value / "key": "value" secrets in free text and JSON strings. The key may carry a prefix
+  // (client_secret, x-api-key, db_password); quoted values are removed through the closing quote.
+  /\b[\w-]*(?:api[_-]?key|apikey|token|secret|password|passwd|pwd|passphrase|authorization|cookie|private[_-]?key|credentials?)\b["']?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s"',;&)\]}]+)/gi,
   /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, // email addresses
 ];
 

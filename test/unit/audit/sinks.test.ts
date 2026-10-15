@@ -51,4 +51,12 @@ describe("JsonlFileSink", () => {
     await expect(sink.write(rec("a", 1))).rejects.toThrow();
     await expect(sink.flush()).resolves.toBeUndefined();
   });
+
+  it("forgets settled write chains so memory does not grow per run", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "jevguard-"));
+    const sink = new JsonlFileSink({ dir });
+    for (let i = 0; i < 20; i++) await sink.write(rec(`run-${i}`, 1));
+    await new Promise((r) => setTimeout(r, 0));
+    expect((sink as unknown as { chains: Map<string, unknown> }).chains.size).toBe(0);
+  });
 });

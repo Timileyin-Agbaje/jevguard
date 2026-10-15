@@ -60,4 +60,22 @@ describe("redaction", () => {
     const r = createRedactor(DEFAULT_REDACTION_PATTERNS, "[X]", ["^ssn$"]);
     expect(redactDeep({ ssn: "123", password: "kept-by-custom-list" }, r)).toEqual({ ssn: "[X]", password: "kept-by-custom-list" });
   });
+
+  it.each([
+    ['password = "alpha beta"'],
+    ["PASSWORD: 'alpha beta'"],
+    ['{"client_secret":"alpha beta"}'],
+    ['db_password="alpha beta"'],
+    ["x-api-key: alphabeta"],
+    ['pwd="alpha beta"'],
+    ['{"refresh_token": "alpha beta"}'],
+  ])("redacts prefixed and quoted secret assignments: %s", (text) => {
+    const out = redact(text);
+    expect(out).toContain("[REDACTED]");
+    expect(out).not.toMatch(/alpha|beta/);
+  });
+
+  it("does not redact token counts", () => {
+    expect(redact("used tokens: 812, max_tokens=1000")).toBe("used tokens: 812, max_tokens=1000");
+  });
 });

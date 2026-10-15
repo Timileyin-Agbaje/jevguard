@@ -219,7 +219,8 @@ class GuardedRun implements Run {
       ts: this.ctx.clock.now(),
       ...(evaluation ? { evaluation } : {}),
     };
-    const next: RunState = { ...this.state, decisions: [...this.state.decisions, decision] };
+    // History keeps its own copy: callers may mutate the decision they get back.
+    const next: RunState = { ...this.state, decisions: [...this.state.decisions, structuredClone(decision)] };
     if (next.status === "running" && action === "stop") next.status = "stopped";
     if (next.status === "paused" && action === "stop") next.status = "stopped";
     if (next.status === "running" && action === "pause") {

@@ -28,10 +28,12 @@ export class JsonlFileSink implements AuditSink {
     const line = `${JSON.stringify(record)}\n`;
     const prev = this.chains.get(path) ?? Promise.resolve();
     const written = prev.then(() => this.ensureDir()).then(() => appendFile(path, line, "utf8"));
-    this.chains.set(
-      path,
-      written.catch(() => {}),
-    );
+    const settled = written.catch(() => {});
+    this.chains.set(path, settled);
+    // Forget finished chains so a long-lived sink does not grow with every run.
+    void settled.then(() => {
+      if (this.chains.get(path) === settled) this.chains.delete(path);
+    });
     return written;
   }
 

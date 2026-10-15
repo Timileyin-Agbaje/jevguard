@@ -140,4 +140,12 @@ describe("guard API and run lifecycle", () => {
     run.record({ type: "agent_step", usage: { tokens: 3, costUsd: 0.5 } });
     expect(run.getState()).toMatchObject({ consecutiveFailures: { fetch: 1 }, usage: { tokens: 3, costUsd: 0.5 } });
   });
+
+  it("mutating a returned decision does not rewrite the run history", async () => {
+    const { run } = setup();
+    const d = await run.check(call("t"));
+    d.action = "stop";
+    d.reasons.push({ code: "manual", source: "system", message: "tampered" });
+    expect(run.getDecisions()[0]).toMatchObject({ action: "allow", reasons: [] });
+  });
 });
